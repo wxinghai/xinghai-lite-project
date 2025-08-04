@@ -26,14 +26,14 @@ public class SessionUtil {
         }
         
         HttpServletRequest request = attributes.getRequest();
-        String userIdStr = (String) request.getAttribute(USER_ID_ATTRIBUTE);
+        Long userId = (Long) request.getAttribute(USER_ID_ATTRIBUTE);
         
-        if (!StringUtils.hasText(userIdStr)) {
+        if (userId == null ) {
             throw new LogicalException("未获取到当前登录用户信息");
         }
         
         try {
-            return Long.parseLong(userIdStr);
+            return userId;
         } catch (NumberFormatException e) {
             throw new LogicalException("用户ID格式错误");
         }

@@ -22,9 +22,10 @@ public class Training {
     private String name;
     
     private BigDecimal volume;
-    
-    @TableField("`range`")  // 使用反引号标记MySQL关键字
-    private String range;
+
+    private Long elapsedTime;
+
+    private String rangeTime;
     
     @TableField(exist = false)
     private List<TrainingAction> trainingActions;

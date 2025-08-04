@@ -38,7 +38,7 @@ public class TrainingServiceImpl extends ServiceImpl<TrainingDao, Training> impl
         // 参照提供的py代码实现功能
         // 1. 查询指定月份的训练记录
         LambdaQueryWrapper<Training> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.likeRight(Training::getTrainingDate, strDate);
+        queryWrapper.like(Training::getTrainingDate, strDate);
         List<Training> trainings = list(queryWrapper);
 
         // 2. 按日期分组结果
@@ -108,7 +108,9 @@ public class TrainingServiceImpl extends ServiceImpl<TrainingDao, Training> impl
     @Transactional
     public Boolean saveTraining(Training training) {
         training.setUserId(SessionUtil.getCurrentUserId());
-        boolean save = this.save(training);
+
+
+        boolean save = this.saveOrUpdate(training);
         Long trainingId = training.getTrainingId();
 
         // 添加非空检查

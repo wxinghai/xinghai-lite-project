@@ -500,7 +500,7 @@
   }
   </script>
   
-  <style>
+  <style scoped>
   .profile-container {
 	padding: 15px;
 	background-color: #f5f5f5;

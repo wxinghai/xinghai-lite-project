@@ -6,6 +6,7 @@ class TrainingManager {
         this.timerInterval = null;
         this.startTime = null;
         this.elapsedTime = 0;
+        this.alreadyTrainingTime = 0;
         this.updateTimeCallbacks = null;
   
     }
@@ -13,7 +14,7 @@ class TrainingManager {
  
     
     // 开始训练
-    startTraining(callback) {
+    startTraining(callback, alreadyTrainingTime = 0) {
 
         if(this.isTraining){
             console.log('已有训练在进行中');
@@ -25,17 +26,26 @@ class TrainingManager {
         this.startTime = Date.now();
         this.elapsedTime = 0;
         this.updateTimeCallbacks = callback;
+        this.alreadyTrainingTime = alreadyTrainingTime;
         // 启动计时器
         this.startTimer();
     
         return { success: true, message: '训练开始成功' };
     }
 
+      getCurrentTime(timess) {
+        const now = new Date(timess);
+        const hours = now.getHours().toString().padStart(2, '0'); // 获取小时并补零
+        const minutes = now.getMinutes().toString().padStart(2, '0'); // 获取分钟并补零
+        return `${hours}:${minutes}`;
+      }
 
     resetTrainingData(trainingData){
         this.trainingData = trainingData;
     }
-    
+    getRangeTime(){
+        return this.getCurrentTime(this.startTime) + '~' + this.getCurrentTime(new Date());
+    }
     // 完成训练
     finishTraining() {
         if (!this.isTraining) {
@@ -47,21 +57,21 @@ class TrainingManager {
         // 计算总训练时间
         const totalTime = this.elapsedTime;
 
+        let rangeTime = this.getCurrentTime(this.startTime) + '~' + this.getCurrentTime(new Date());
+        
         // 清除训练状态
         this.isTraining = false;
         this.trainingData = null;
         this.startTime = null;
         this.updateTimeCallbacks = null;
         this.elapsedTime = 0;
-        
-        console.log('训练完成，总时间:', this.formatTime(totalTime));
-        
-        return { 
-            success: true, 
+    
+        return {
+            success: true,
             message: '训练完成',
-            totalTime: this.formatTime(totalTime),
-            totalTimeMs: totalTime
-        };
+            rangeTime: rangeTime,
+            
+        }
     }
     
     // 启动计时器
@@ -72,7 +82,8 @@ class TrainingManager {
         this.timerInterval = setInterval(() => {
             this.elapsedTime = Date.now() - this.startTime;
             // 更新时间
-            this.triggerUpdateTimeCallbacks();
+            let calcTime = this.elapsedTime+this.alreadyTrainingTime;
+            this.triggerUpdateTimeCallbacks(calcTime);
         }, 1000);
     }
  
@@ -105,9 +116,10 @@ class TrainingManager {
     }
 
     // 触发更新回调
-    triggerUpdateTimeCallbacks() {      
+    triggerUpdateTimeCallbacks(calcTime) {      
         if(this.updateTimeCallbacks){   
-            this.updateTimeCallbacks(this.elapsedTime, this.formatTime(this.elapsedTime));
+				console.log(typeof calcTime,"hhhh ")
+            this.updateTimeCallbacks(calcTime);
         }
        
     }

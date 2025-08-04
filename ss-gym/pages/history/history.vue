@@ -195,7 +195,7 @@ export default {
 		const {firstDay,lastDay,nowDay} = getThisYearRange();
 		this.firstDay = firstDay;
 		this.lastDay = lastDay;
-		this.yearWithMonth = nowDay
+		this.yearWithMonth = nowDay.substring(0, 7)
 		this.currentDate = nowDay;
 		this.getDbTrainingData(); // 直接获取当前月份数据
 	},
@@ -220,7 +220,7 @@ export default {
 		// 点击日期
 	dateClick(e) {
 		this.selectedDate = e.fulldate;
-		
+		console.log('selectedDate',this.selectedDate);	
 		// 根据选中日期加载相应的训练数据
 		const trainingData = this.getTrainingDataForDate(this.selectedDate);
 		
@@ -288,7 +288,7 @@ export default {
 			success: (res) => {
 				switch (res.tapIndex) {
 					case 0: // 添加新的力量训练
-						this.addStrengthTraining();
+						this.openTrainingPage();
 						break;
 					case 1: // 导出训练记录
 						this.exportTrainingData();
@@ -303,7 +303,7 @@ export default {
 	openTrainingPage(){
 		// 跳转到训练编辑页面
 		uni.navigateTo({
-			url: '/pages/training/training'
+			url: '/pages/workout/workout?date='+this.selectedDate
 		});
 	},
 	// 编辑训练
@@ -347,7 +347,7 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 /* 基本样式 */
 .container {
 	display: flex;

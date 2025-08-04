@@ -216,6 +216,20 @@ export const getThisYearRange = () => {
   };
 };
 
+export const formatTimeToXXXX = (milliseconds)  => {
+        const seconds = Math.floor(milliseconds / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        
+        const remainingSeconds = seconds % 60;
+        const remainingMinutes = minutes % 60;
+        
+        if (hours > 0) {
+            return `${String(hours).padStart(2, '0')}:${String(remainingMinutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+        } else {
+            return `${String(remainingMinutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+        }
+    }
  
 
 export default {
@@ -233,5 +247,6 @@ export default {
   millisecondsToTimeString,
   getLastYearToday,
   getNextYearToday,
-  getThisYearRange
+  getThisYearRange,
+  formatTimeToXXXX  
 }; 
