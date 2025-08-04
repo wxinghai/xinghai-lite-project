@@ -1,0 +1,75 @@
+{
+	"tabBar": {
+		"color": "#999",
+		"selectedColor": "#1890ff",
+		"backgroundColor": "#ffffff",
+		"borderStyle": "black",
+		"height": "50px",
+		"list": [
+			{
+				"pagePath": "pages/index/index",
+				"text": "训练",
+				"iconPath": "static/tabbar/xunlian-unselect.png",
+				"selectedIconPath": "static/tabbar/xunlian-select.png"
+			},
+			{
+				"pagePath": "pages/actions/actions",
+				"text": "动作",
+				"iconPath": "static/tabbar/dongzuo-unselect.png",
+				"selectedIconPath": "static/tabbar/dongzuo-select.png"
+			},
+			{
+				"pagePath": "pages/history/history",
+				"text": "历史",
+				"iconPath": "static/tabbar/lishi-unselect.png",
+				"selectedIconPath": "static/tabbar/lishi-select.png"
+			},
+			{
+				"pagePath": "pages/profile/profile",
+				"text": "我的",
+				"iconPath": "static/tabbar/wode-unselect.png",
+				"selectedIconPath": "static/tabbar/wode-select.png"
+			}
+		]
+	},
+	"pages": [
+		{
+			"path": "pages/index/index",
+			"style": {
+				"navigationBarTitleText": "首页"
+			}
+		},
+		{
+			"path": "pages/actions/actions",
+			"style": {
+				"navigationBarTitleText": "动作库"
+			}
+		},
+		{
+			"path": "pages/history/history",
+			"style": {
+				"navigationBarTitleText": "历史"
+			}
+		},
+		{
+			"path": "pages/profile/profile",
+			"style": {
+				"navigationBarTitleText": "我的"
+			}
+		},
+		{
+			"path": "pages/workout/workout",
+			"style": {
+				"navigationBarTitleText": "训练"
+				
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "SS Gym",
+		"navigationBarBackgroundColor": "#F8F8F8",
+		"backgroundColor": "#F8F8F8",
+		"navigationStyle": "custom"
+	}
+} 
