@@ -1,0 +1,339 @@
+<template>
+	<view class="container">
+		<!-- 页面标题 -->
+		<view class="header">
+			<text class="header-title">今日训练</text>
+		</view>
+		
+		<!-- 训练卡片 -->
+		<view class="training-card">
+			<view class="training-info">
+				<text class="training-title">70%腿训</text>
+				<view class="training-meta">
+					<text class="training-meta-item">个人模版</text>
+					<view class="training-meta-item-group">
+						<text class="training-meta-icon">动作</text>
+						<text class="training-meta-value">3</text>
+					</view>
+					<view class="training-meta-item-group">
+						<text class="training-meta-icon">组数</text>
+						<text class="training-meta-value">16</text>
+					</view>
+				</view>
+			</view>
+			<view class="go-button" @click="startTraining">
+				<text class="go-text">GO!</text>
+			</view>
+		</view>
+		
+		<!-- 训练类型导航 -->
+		<view class="nav-tabs">
+			<view class="tab" :class="{ active: activeTab === 0 }" @click="changeTab(0)">
+				<text class="tab-text" :class="{ 'active-text': activeTab === 0 }">官方计划</text>
+			</view>
+			<view class="tab" :class="{ active: activeTab === 1 }" @click="changeTab(1)">
+				<text class="tab-text" :class="{ 'active-text': activeTab === 1 }">个人模版</text>
+			</view>
+			<view class="tab" :class="{ active: activeTab === 2 }" @click="changeTab(2)">
+				<text class="tab-text" :class="{ 'active-text': activeTab === 2 }">个人计划(Beta)</text>
+			</view>
+		</view>
+		
+		<!-- 训练标签 -->
+		<scroll-view scroll-x="true" show-scrollbar="false" class="tags-scroll">
+			<view class="training-tags">
+				<view class="tag" v-for="(tag, index) in tags" :key="index" :class="{ active: activeTag === index }" @click="selectTag(index)">
+					<text class="tag-text" :class="{ 'active-text': activeTag === index }">{{ tag }}</text>
+				</view>
+			</view>
+		</scroll-view>
+		
+		<!-- 训练计划卡片 -->
+		<list class="plan-list" show-scrollbar="false" alwaysScrollableVertical="true">
+			<cell v-for="(plan, index) in filteredPlans" :key="index">
+				<view class="plan-card" @click="viewPlan(plan)">
+					<image class="plan-image" :src="plan.image || '/static/default-plan.png'" resize="cover"></image>
+					<view class="plan-content">
+						<text class="plan-title">{{ plan.title }}</text>
+						<text class="plan-desc">{{ plan.description }}</text>
+					</view>
+				</view>
+			</cell>
+			
+			<cell v-if="showOldPlans">
+				<view class="section-title">
+					<text class="section-text">旧的减脂计划</text>
+				</view>
+			</cell>
+			
+			<cell v-for="(plan, index) in oldPlans" :key="'old-'+index" v-if="showOldPlans">
+				<view class="plan-card" @click="viewPlan(plan)">
+					<image class="plan-image" :src="plan.image || '/static/default-plan.png'" resize="cover"></image>
+					<view class="plan-content">
+						<text class="plan-title">{{ plan.title }}</text>
+						<text class="plan-desc">{{ plan.description }}</text>
+					</view>
+				</view>
+			</cell>
+		</list>
+	</view>
+</template>
+
+<script>
+	export default {
+		data() {
+			return {
+				activeTab: 0,
+				activeTag: 0,
+				showOldPlans: true,
+				tags: ['减脂塑形', '部位专攻', '增肌·男', '增肌·女', '力量举', '旧计划'],
+				plans: [
+					{
+						title: '男生减脂塑形捷径',
+						description: '解决肚子大、肌肉小、没有型！',
+						image: '',
+						type: 0, // 官方计划
+						tag: 0, // 减脂塑形
+					},
+					{
+						title: '女生减脂塑形捷径',
+						description: '灭绝腰粗、腿粗副乳、塌扁平臀！',
+						image: '',
+						type: 0, // 官方计划
+						tag: 0, // 减脂塑形
+					}
+				],
+				oldPlans: [
+					{
+						title: '旧版减脂计划',
+						description: '经典减脂训练计划',
+						image: '',
+						type: 0,
+						tag: 5, // 旧计划
+					}
+				]
+			}
+		},
+		computed: {
+			filteredPlans() {
+				return this.plans.filter(plan => 
+					plan.type === this.activeTab && 
+					plan.tag === this.activeTag
+				);
+			}
+		},
+		onLoad() {
+			// 页面加载时执行
+			uni.setNavigationBarTitle({
+				title: '今日训练'
+			});
+		},
+		methods: {
+			changeTab(index) {
+				this.activeTab = index;
+			},
+			selectTag(index) {
+				this.activeTag = index;
+				this.showOldPlans = index === 5; // 如果选择了"旧计划"标签
+			},
+			startTraining() {
+				uni.showToast({
+					title: '开始训练',
+					icon: 'none'
+				});
+			},
+			viewPlan(plan) {
+				uni.showToast({
+					title: '查看计划: ' + plan.title,
+					icon: 'none'
+				});
+				// 可以跳转到计划详情页
+				// uni.navigateTo({
+				//   url: `/pages/plan-detail/plan-detail?id=${plan.id}`
+				// });
+			}
+		}
+	}
+</script>
+
+<style>
+	.container {
+		flex: 1;
+		flex-direction: column;
+		background-color: #f5f5f5;
+		padding: 20rpx;
+	}
+	
+	.header {
+		margin-top: 20rpx;
+		margin-bottom: 30rpx;
+		padding-left: 20rpx;
+	}
+	
+	.header-title {
+		font-size: 44rpx;
+		font-weight: bold;
+		color: #333;
+	}
+	
+	.training-card {
+		background-color: #ffffff;
+		border-radius: 16rpx;
+		padding: 30rpx;
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 30rpx;
+	}
+	
+	.training-info {
+		flex: 1;
+	}
+	
+	.training-title {
+		font-size: 50rpx;
+		font-weight: bold;
+		color: #0A84FF;
+		margin-bottom: 20rpx;
+	}
+	
+	.training-meta {
+		flex-direction: row;
+		align-items: center;
+	}
+	
+	.training-meta-item {
+		color: #999;
+		font-size: 28rpx;
+		margin-right: 30rpx;
+	}
+	
+	.training-meta-item-group {
+		flex-direction: row;
+		align-items: center;
+		margin-right: 30rpx;
+	}
+	
+	.training-meta-icon {
+		color: #999;
+		font-size: 28rpx;
+		margin-right: 10rpx;
+	}
+	
+	.training-meta-value {
+		color: #333;
+		font-size: 28rpx;
+		font-weight: bold;
+	}
+	
+	.go-button {
+		width: 120rpx;
+		height: 120rpx;
+		background-color: #333;
+		border-radius: 60rpx;
+		align-items: center;
+		justify-content: center;
+	}
+	
+	.go-text {
+		color: #ffffff;
+		font-size: 36rpx;
+		font-weight: bold;
+	}
+	
+	.nav-tabs {
+		flex-direction: row;
+		margin-bottom: 20rpx;
+	}
+	
+	.tab {
+		background-color: #f0f0f0;
+		padding: 16rpx 30rpx;
+		border-radius: 40rpx;
+		margin-right: 20rpx;
+	}
+	
+	.tab.active {
+		background-color: #333;
+	}
+	
+	.tab-text {
+		color: #666;
+		font-size: 28rpx;
+	}
+	
+	.active-text {
+		color: #ffffff;
+	}
+	
+	.tags-scroll {
+		margin-bottom: 20rpx;
+	}
+	
+	.training-tags {
+		flex-direction: row;
+		padding: 10rpx 0;
+	}
+	
+	.tag {
+		background-color: #f0f0f0;
+		padding: 16rpx 30rpx;
+		border-radius: 40rpx;
+		margin-right: 20rpx;
+	}
+	
+	.tag.active {
+		background-color: #333;
+	}
+	
+	.tag-text {
+		color: #666;
+		font-size: 28rpx;
+	}
+	
+	.plan-list {
+		flex: 1;
+	}
+	
+	.plan-card {
+		background-color: #ffffff;
+		border-radius: 16rpx;
+		margin-bottom: 30rpx;
+		flex-direction: row;
+		overflow: hidden;
+	}
+	
+	.plan-image {
+		width: 260rpx;
+		height: 220rpx;
+		background-color: #FF6B81;
+	}
+	
+	.plan-content {
+		flex: 1;
+		padding: 30rpx;
+		justify-content: center;
+	}
+	
+	.plan-title {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #333;
+		margin-bottom: 20rpx;
+	}
+	
+	.plan-desc {
+		font-size: 28rpx;
+		color: #999;
+	}
+	
+	.section-title {
+		align-items: center;
+		padding: 40rpx 0;
+	}
+	
+	.section-text {
+		color: #999;
+		font-size: 32rpx;
+	}
+</style> 

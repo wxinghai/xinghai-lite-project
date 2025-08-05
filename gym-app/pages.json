@@ -1,0 +1,94 @@
+{
+	"pages": [
+		{
+			"path": "pages/training/training",
+			"style": {
+				"navigationBarTitleText": "",
+				"nvue": true
+			}
+		},
+		{
+			"path": "pages/actions/actions",
+			"style": {
+				"navigationBarTitleText": "",
+				"nvue": true
+			}
+		},
+		{
+			"path": "pages/diet/diet",
+			"style": {
+				"navigationBarTitleText": "",
+				"nvue": true
+			}
+		},
+		{
+			"path": "pages/calendar/calendar",
+			"style": {
+				"navigationBarTitleText": "",
+				"nvue": true
+			}
+		},
+		{
+			"path": "pages/profile/profile",
+			"style": {
+				"navigationBarTitleText": "",
+				"nvue": true
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "",
+		"navigationBarBackgroundColor": "#F8F8F8",
+		"backgroundColor": "#F8F8F8",
+		"app-plus": {
+			"titleNView": {
+				"titleText": false
+			}
+		}
+	},
+	"tabBar": {
+		"color": "#999999",
+		"selectedColor": "#0A84FF",
+		"backgroundColor": "#ffffff",
+		"list": [
+			{
+				"pagePath": "pages/training/training",
+				"text": "训练",
+				"iconPath": "static/icon/training-inactive.png",
+				"selectedIconPath": "static/icon/training-active.png"
+			},
+			{
+				"pagePath": "pages/actions/actions",
+				"text": "动作",
+				"iconPath": "static/icon/actions-inactive.png",
+				"selectedIconPath": "static/icon/actions-active.png"
+			},
+			{
+				"pagePath": "pages/diet/diet",
+				"text": "训练/饮食",
+				"iconPath": "static/icon/diet-inactive.png",
+				"selectedIconPath": "static/icon/diet-active.png"
+			},
+			{
+				"pagePath": "pages/calendar/calendar",
+				"text": "历史",
+				"iconPath": "static/icon/history-inactive.png",
+				"selectedIconPath": "static/icon/history-active.png"
+			},
+			{
+				"pagePath": "pages/profile/profile",
+				"text": "我的",
+				"iconPath": "static/icon/profile-inactive.png",
+				"selectedIconPath": "static/icon/profile-active.png"
+			}
+		]
+	},
+	"uniIdRouter": {},
+	"app-plus": {
+		"nvueCompiler": "uni-app",
+		"titleNView": {
+			"titleText": false
+		}
+	}
+}

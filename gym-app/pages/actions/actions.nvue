@@ -1,0 +1,417 @@
+<template>
+	<view class="container">
+		<!-- 搜索栏 -->
+		<view class="search-bar">
+			<view class="search-box" @click="focusSearch">
+				<text class="search-icon">🔍</text>
+				<input 
+					class="search-input" 
+					placeholder="输入动作名字搜索" 
+					placeholder-style="color: #999;" 
+					confirm-type="search"
+					v-model="searchKeyword"
+					@confirm="searchActions"
+					ref="searchInput"
+				/>
+			</view>
+			<text class="add-icon" @click="addAction">+</text>
+		</view>
+		
+		<!-- 内容区 -->
+		<view class="content">
+			<!-- 左侧部位导航 -->
+			<scroll-view class="body-parts" scroll-y="true" show-scrollbar="false">
+				<view 
+					class="body-part" 
+					v-for="(part, index) in bodyParts" 
+					:key="index"
+					:class="{ active: activeBodyPart === index }"
+					@click="selectBodyPart(index)"
+				>
+					<text class="body-part-text" :class="{ 'active-text': activeBodyPart === index }">{{ part }}</text>
+				</view>
+			</scroll-view>
+			
+			<!-- 右侧内容区 -->
+			<view class="right-content">
+				<!-- 分类导航 -->
+				<scroll-view class="category-scroll" scroll-x="true" show-scrollbar="false">
+					<view class="category-tabs">
+						<view 
+							class="category-tab" 
+							v-for="(category, index) in categories" 
+							:key="index"
+							:class="{ active: activeCategory === index }"
+							@click="selectCategory(index)"
+						>
+							<text class="category-text" :class="{ 'active-text': activeCategory === index }">{{ category }}</text>
+						</view>
+					</view>
+				</scroll-view>
+				
+				<!-- 分类标题 -->
+				<view class="action-title" v-if="currentCategoryActions.length > 0">
+					<text class="action-title-text">{{ categories[activeCategory] }}</text>
+				</view>
+				
+				<!-- 动作列表 -->
+				<list class="action-list" show-scrollbar="false" alwaysScrollableVertical="true">
+					<cell v-for="(rowIndex, index) in Math.ceil(currentCategoryActions.length / 2)" :key="index">
+						<view class="action-row">
+							<!-- 左侧动作项 -->
+							<view 
+								class="action-item" 
+								v-if="currentCategoryActions[(rowIndex-1)*2]"
+								@click="viewActionDetail(currentCategoryActions[(rowIndex-1)*2])"
+							>
+								<view class="action-tutorial" v-if="currentCategoryActions[(rowIndex-1)*2].hasTutorial">
+									<text class="tutorial-text">讲解</text>
+								</view>
+								<image 
+									class="action-image" 
+									:src="currentCategoryActions[(rowIndex-1)*2].image || '/static/actions/default.png'" 
+									resize="cover"
+								></image>
+								<text class="action-name">{{ currentCategoryActions[(rowIndex-1)*2].name }}</text>
+							</view>
+							
+							<!-- 右侧动作项 -->
+							<view 
+								class="action-item" 
+								v-if="currentCategoryActions[(rowIndex-1)*2+1]"
+								@click="viewActionDetail(currentCategoryActions[(rowIndex-1)*2+1])"
+							>
+								<view class="action-tutorial" v-if="currentCategoryActions[(rowIndex-1)*2+1].hasTutorial">
+									<text class="tutorial-text">讲解</text>
+								</view>
+								<image 
+									class="action-image" 
+									:src="currentCategoryActions[(rowIndex-1)*2+1].image || '/static/actions/default.png'" 
+									resize="cover"
+								></image>
+								<text class="action-name">{{ currentCategoryActions[(rowIndex-1)*2+1].name }}</text>
+							</view>
+							
+							<!-- 空白占位 -->
+							<view class="action-item placeholder" v-if="(rowIndex-1)*2+1 >= currentCategoryActions.length"></view>
+						</view>
+					</cell>
+					
+					<cell v-if="currentCategoryActions.length === 0">
+						<view class="no-data">
+							<text class="no-data-text">暂无数据</text>
+						</view>
+					</cell>
+				</list>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script>
+	export default {
+		data() {
+			return {
+				searchKeyword: '',
+				activeBodyPart: 0,
+				activeCategory: 1, // 默认选中"杠铃"
+				bodyParts: ['胸', '上胸', '中下胸', '背', '腿', '肩', '斜方肌', '二头', '三头', '小腿', '前臂', '颈部', '臀部', '功能性', '核心稳定'],
+				categories: ['置顶', '杠铃', '哑铃', '壶铃'],
+				actions: [
+					{
+						id: 1,
+						name: '杠铃卧推',
+						image: '/static/actions/bench-press.png',
+						category: 1, // 杠铃
+						bodyPart: 0, // 胸
+						hasTutorial: true
+					},
+					{
+						id: 2,
+						name: '暂停卧推',
+						image: '/static/actions/pause-press.png',
+						category: 1, // 杠铃
+						bodyPart: 0, // 胸
+						hasTutorial: true
+					},
+					{
+						id: 3,
+						name: '宽距杠铃卧推',
+						image: '/static/actions/incline-press.png',
+						category: 1, // 杠铃
+						bodyPart: 0, // 胸
+						hasTutorial: false
+					},
+					{
+						id: 4,
+						name: '上斜杠铃卧推',
+						image: '/static/actions/incline-bench.png',
+						category: 1, // 杠铃
+						bodyPart: 1, // 上胸
+						hasTutorial: true
+					},
+					{
+						id: 5,
+						name: '下斜杠铃卧推',
+						image: '/static/actions/decline-press.png',
+						category: 1, // 杠铃
+						bodyPart: 2, // 中下胸
+						hasTutorial: false
+					},
+					{
+						id: 6,
+						name: '杠铃片夹胸',
+						image: '/static/actions/fly.png',
+						category: 1, // 杠铃
+						bodyPart: 0, // 胸
+						hasTutorial: true
+					},
+					{
+						id: 7,
+						name: '抬腿杠铃卧推',
+						image: '/static/actions/leg-press.png',
+						category: 1, // 杠铃
+						bodyPart: 0, // 胸
+						hasTutorial: true
+					}
+				]
+			}
+		},
+		computed: {
+			currentCategoryActions() {
+				// 筛选出当前分类和身体部位的动作
+				return this.actions.filter(action => 
+					action.category === this.activeCategory && 
+					action.bodyPart === this.activeBodyPart
+				);
+			}
+		},
+		onLoad() {
+			uni.setNavigationBarTitle({
+				title: '动作'
+			});
+		},
+		methods: {
+			selectBodyPart(index) {
+				this.activeBodyPart = index;
+			},
+			selectCategory(index) {
+				this.activeCategory = index;
+			},
+			focusSearch() {
+				this.$nextTick(() => {
+					this.$refs.searchInput.focus();
+				});
+			},
+			searchActions() {
+				if (!this.searchKeyword.trim()) return;
+				
+				uni.showToast({
+					title: '搜索: ' + this.searchKeyword,
+					icon: 'none'
+				});
+				
+				// 实际应用中会调用搜索API
+			},
+			addAction() {
+				uni.showToast({
+					title: '添加动作',
+					icon: 'none'
+				});
+			},
+			viewActionDetail(action) {
+				uni.showToast({
+					title: '查看动作: ' + action.name,
+					icon: 'none'
+				});
+				
+				// 实际应用中会跳转到详情页
+				// uni.navigateTo({
+				//   url: `/pages/action-detail/action-detail?id=${action.id}`
+				// });
+			}
+		}
+	}
+</script>
+
+<style>
+	.container {
+		flex: 1;
+		flex-direction: column;
+		background-color: #f5f5f5;
+	}
+	
+	.search-bar {
+		flex-direction: row;
+		padding: 20rpx;
+		align-items: center;
+		background-color: #f0f0f0;
+	}
+	
+	.search-box {
+		flex: 1;
+		flex-direction: row;
+		align-items: center;
+		background-color: #fff;
+		border-radius: 40rpx;
+		padding: 15rpx 30rpx;
+		margin-right: 20rpx;
+	}
+	
+	.search-icon {
+		font-size: 32rpx;
+		color: #999;
+		margin-right: 10rpx;
+	}
+	
+	.search-input {
+		flex: 1;
+		height: 60rpx;
+		font-size: 28rpx;
+	}
+	
+	.add-icon {
+		width: 70rpx;
+		height: 70rpx;
+		background-color: #0A84FF;
+		border-radius: 35rpx;
+		text-align: center;
+		line-height: 60rpx;
+		color: #fff;
+		font-size: 50rpx;
+	}
+	
+	.content {
+		flex: 1;
+		flex-direction: row;
+	}
+	
+	.body-parts {
+		width: 180rpx;
+		background-color: #f0f0f0;
+	}
+	
+	.body-part {
+		height: 100rpx;
+		justify-content: center;
+		align-items: center;
+		border-left-width: 6rpx;
+		border-left-color: transparent;
+	}
+	
+	.body-part.active {
+		background-color: #fff;
+		border-left-color: #0A84FF;
+	}
+	
+	.body-part-text {
+		font-size: 28rpx;
+		color: #666;
+	}
+	
+	.active-text {
+		color: #0A84FF;
+		font-weight: bold;
+	}
+	
+	.right-content {
+		flex: 1;
+		flex-direction: column;
+		padding: 20rpx;
+	}
+	
+	.category-scroll {
+		margin-bottom: 20rpx;
+	}
+	
+	.category-tabs {
+		flex-direction: row;
+		padding: 10rpx 0;
+	}
+	
+	.category-tab {
+		padding: 10rpx 30rpx;
+		margin-right: 20rpx;
+		border-bottom-width: 4rpx;
+		border-bottom-color: transparent;
+	}
+	
+	.category-tab.active {
+		border-bottom-color: #0A84FF;
+	}
+	
+	.category-text {
+		font-size: 28rpx;
+		color: #666;
+	}
+	
+	.action-title {
+		margin: 20rpx 0;
+	}
+	
+	.action-title-text {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #333;
+	}
+	
+	.action-list {
+		flex: 1;
+	}
+	
+	.action-row {
+		flex-direction: row;
+		justify-content: space-between;
+		margin-bottom: 30rpx;
+	}
+	
+	.action-item {
+		width: 340rpx;
+		background-color: #fff;
+		border-radius: 16rpx;
+		overflow: hidden;
+		position: relative;
+	}
+	
+	.action-item.placeholder {
+		background-color: transparent;
+	}
+	
+	.action-tutorial {
+		position: absolute;
+		top: 10rpx;
+		left: 10rpx;
+		background-color: #0A84FF;
+		padding: 6rpx 16rpx;
+		border-radius: 20rpx;
+	}
+	
+	.tutorial-text {
+		color: #fff;
+		font-size: 24rpx;
+	}
+	
+	.action-image {
+		width: 340rpx;
+		height: 200rpx;
+		background-color: #f0f0f0;
+	}
+	
+	.action-name {
+		font-size: 28rpx;
+		color: #333;
+		padding: 16rpx;
+		text-align: center;
+	}
+	
+	.no-data {
+		align-items: center;
+		justify-content: center;
+		padding: 100rpx 0;
+	}
+	
+	.no-data-text {
+		color: #999;
+		font-size: 28rpx;
+	}
+</style> 

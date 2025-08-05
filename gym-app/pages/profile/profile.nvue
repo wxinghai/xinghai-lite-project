@@ -1,0 +1,419 @@
+<template>
+	<view class="container">
+		<!-- 用户信息卡片 -->
+		<view class="user-card">
+			<view class="user-info">
+				<view class="avatar-container" @click="uploadAvatar">
+					<image class="avatar" :src="userInfo.avatar || '/static/avatar/default.png'" mode="aspectFill"></image>
+					<text class="gender-icon">{{ userInfo.gender === 'male' ? '♂' : '♀' }}</text>
+				</view>
+				<view class="user-details">
+					<text class="username">{{ userInfo.username || 'xxx' }}</text>
+					<view class="pro-badge" v-if="userInfo.isPro">
+						<text class="pro-text">永久PRO</text>
+					</view>
+					<text class="user-id" @click="copyUserId">训记ID {{ userInfo.id || '7790124' }} 点击复制</text>
+				</view>
+			</view>
+			<text class="edit-text" @click="editUserInfo">修改信息 ></text>
+		</view>
+		
+		<!-- 功能列表1 -->
+		<view class="function-list">
+			<!-- 经期记录 -->
+			<view class="function-item" @click="navigateTo('period-record')">
+				<view class="function-left">
+					<view class="function-icon pink">
+						<text class="function-icon-text">💧</text>
+					</view>
+					<text class="function-name">经期记录</text>
+				</view>
+				<text class="arrow-icon">></text>
+			</view>
+			
+			<!-- 照片墙 -->
+			<view class="function-item" @click="navigateTo('photo-wall')">
+				<view class="function-left">
+					<view class="function-icon blue">
+						<text class="function-icon-text">📷</text>
+					</view>
+					<text class="function-name">照片墙</text>
+				</view>
+				<text class="arrow-icon">></text>
+			</view>
+			
+			<!-- 训记备忘录 -->
+			<view class="function-item" @click="navigateTo('notes')">
+				<view class="function-left">
+					<view class="function-icon blue">
+						<text class="function-icon-text">📝</text>
+					</view>
+					<text class="function-name">训记备忘录</text>
+				</view>
+				<text class="arrow-icon">></text>
+			</view>
+		</view>
+		
+		<!-- 功能列表2 -->
+		<view class="function-list">
+			<!-- 分享训记 -->
+			<view class="function-item" @click="shareApp">
+				<view class="function-left">
+					<view class="function-icon blue">
+						<text class="function-icon-text">↗️</text>
+					</view>
+					<text class="function-name">分享训记</text>
+				</view>
+				<text class="arrow-icon">></text>
+			</view>
+			
+			<!-- 偏好设置 -->
+			<view class="function-item" @click="navigateTo('preferences')">
+				<view class="function-left">
+					<view class="function-icon blue">
+						<text class="function-icon-text">⚙️</text>
+					</view>
+					<text class="function-name">偏好设置</text>
+				</view>
+				<text class="arrow-icon">></text>
+			</view>
+			
+			<!-- 反馈中心 -->
+			<view class="function-item" @click="navigateTo('feedback')">
+				<view class="function-left">
+					<view class="function-icon blue">
+						<text class="function-icon-text">😊</text>
+					</view>
+					<text class="function-name">反馈中心</text>
+				</view>
+				<text class="arrow-icon">></text>
+			</view>
+			
+			<!-- 身体数据 -->
+			<view class="function-item" @click="navigateTo('body-data')">
+				<view class="function-left">
+					<view class="function-icon blue">
+						<text class="function-icon-text">👤</text>
+					</view>
+					<text class="function-name">身体数据</text>
+				</view>
+				<text class="arrow-icon">></text>
+			</view>
+		</view>
+		
+		<!-- 功能列表3 -->
+		<view class="function-list">
+			<!-- 教练记 -->
+			<view class="function-item" @click="navigateTo('coach-notes')">
+				<view class="function-left">
+					<view class="function-icon green">
+						<text class="function-icon-text">🏋️</text>
+					</view>
+					<text class="function-name">教练记</text>
+				</view>
+				<text class="arrow-icon">></text>
+			</view>
+		</view>
+		
+		<!-- 功能列表4 -->
+		<view class="function-list">
+			<!-- 操作指南 -->
+			<view class="function-item" @click="navigateTo('guide')">
+				<view class="function-left">
+					<view class="function-icon green">
+						<text class="function-icon-text">📘</text>
+					</view>
+					<text class="function-name">操作指南</text>
+				</view>
+				<text class="arrow-icon">></text>
+			</view>
+			
+			<!-- 语言设置 -->
+			<view class="function-item" @click="navigateTo('language')">
+				<view class="function-left">
+					<view class="function-icon blue">
+						<text class="function-icon-text">🌐</text>
+					</view>
+					<text class="function-name">语言设置 / Language</text>
+				</view>
+				<view class="function-right">
+					<text class="beta-tag">Beta</text>
+					<text class="arrow-icon">></text>
+				</view>
+			</view>
+			
+			<!-- RM计算器 -->
+			<view class="function-item" @click="navigateTo('rm-calculator')">
+				<view class="function-left">
+					<view class="function-icon brown">
+						<text class="function-icon-text">🧮</text>
+					</view>
+					<text class="function-name">RM计算器</text>
+				</view>
+				<text class="arrow-icon">></text>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script>
+	export default {
+		data() {
+			return {
+				userInfo: {
+					id: '7790124',
+					username: 'xxx',
+					avatar: '',
+					gender: 'male',
+					isPro: true
+				}
+			}
+		},
+		onLoad() {
+			uni.setNavigationBarTitle({
+				title: '我的'
+			});
+			
+			// 实际应用中可以从服务器获取用户信息
+			// this.getUserInfo();
+		},
+		methods: {
+			navigateTo(page) {
+				uni.showToast({
+					title: `跳转到 ${page} 页面`,
+					icon: 'none'
+				});
+				
+				// 实际应用中可以跳转到对应页面
+				// uni.navigateTo({
+				//   url: `/pages/${page}/${page}`
+				// });
+			},
+			uploadAvatar() {
+				uni.chooseImage({
+					count: 1,
+					sizeType: ['compressed'],
+					sourceType: ['album', 'camera'],
+					success: (res) => {
+						const tempFilePath = res.tempFilePaths[0];
+						this.userInfo.avatar = tempFilePath;
+						
+						// 实际应用中可以上传头像到服务器
+						// this.uploadAvatarToServer(tempFilePath);
+						uni.showToast({
+							title: '头像更新成功',
+							icon: 'success'
+						});
+					}
+				});
+			},
+			copyUserId() {
+				uni.setClipboardData({
+					data: this.userInfo.id,
+					success: () => {
+						uni.showToast({
+							title: 'ID已复制到剪贴板',
+							icon: 'success'
+						});
+					}
+				});
+			},
+			editUserInfo() {
+				this.navigateTo('edit-profile');
+			},
+			shareApp() {
+				// 分享功能
+				uni.share({
+					provider: "weixin",
+					scene: "WXSceneSession",
+					type: 0,
+					title: "训记App - 健身训练记录",
+					summary: "专业的健身记录与训练规划应用",
+					imageUrl: "/static/logo.png",
+					success: (res) => {
+						uni.showToast({
+							title: '分享成功',
+							icon: 'success'
+						});
+					},
+					fail: (err) => {
+						uni.showToast({
+							title: '分享失败',
+							icon: 'none'
+						});
+					}
+				});
+			},
+			getUserInfo() {
+				// 实际应用中可以从服务器获取用户信息
+				uni.request({
+					url: 'https://api.example.com/user',
+					method: 'GET',
+					success: (res) => {
+						if (res.statusCode === 200) {
+							this.userInfo = res.data;
+						}
+					},
+					fail: () => {
+						uni.showToast({
+							title: '获取用户信息失败',
+							icon: 'none'
+						});
+					}
+				});
+			}
+		}
+	}
+</script>
+
+<style>
+	.container {
+		flex: 1;
+		flex-direction: column;
+		background-color: #f5f5f5;
+	}
+	
+	.user-card {
+		background-color: #ffffff;
+		padding: 30rpx;
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 20rpx;
+	}
+	
+	.user-info {
+		flex-direction: row;
+		align-items: center;
+	}
+	
+	.avatar-container {
+		position: relative;
+		margin-right: 20rpx;
+	}
+	
+	.avatar {
+		width: 120rpx;
+		height: 120rpx;
+		border-radius: 60rpx;
+		background-color: #f0f0f0;
+	}
+	
+	.gender-icon {
+		position: absolute;
+		bottom: 0;
+		right: 0;
+		width: 40rpx;
+		height: 40rpx;
+		background-color: #5eb5f8;
+		border-radius: 20rpx;
+		text-align: center;
+		line-height: 40rpx;
+		color: #fff;
+		font-size: 24rpx;
+	}
+	
+	.user-details {
+		flex-direction: column;
+		justify-content: center;
+	}
+	
+	.username {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #333;
+		margin-bottom: 10rpx;
+	}
+	
+	.pro-badge {
+		background-color: #333;
+		border-radius: 30rpx;
+		padding: 6rpx 20rpx;
+		margin-bottom: 10rpx;
+	}
+	
+	.pro-text {
+		color: #ffd700;
+		font-size: 24rpx;
+	}
+	
+	.user-id {
+		font-size: 24rpx;
+		color: #999;
+	}
+	
+	.edit-text {
+		font-size: 28rpx;
+		color: #999;
+	}
+	
+	.function-list {
+		background-color: #ffffff;
+		margin-bottom: 20rpx;
+	}
+	
+	.function-item {
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+		padding: 30rpx;
+		border-bottom-width: 1rpx;
+		border-bottom-color: #f0f0f0;
+	}
+	
+	.function-left {
+		flex-direction: row;
+		align-items: center;
+	}
+	
+	.function-icon {
+		width: 60rpx;
+		height: 60rpx;
+		border-radius: 30rpx;
+		justify-content: center;
+		align-items: center;
+		margin-right: 20rpx;
+	}
+	
+	.function-icon.blue {
+		background-color: #5eb5f8;
+	}
+	
+	.function-icon.pink {
+		background-color: #ff6b81;
+	}
+	
+	.function-icon.green {
+		background-color: #4caf50;
+	}
+	
+	.function-icon.brown {
+		background-color: #a98274;
+	}
+	
+	.function-icon-text {
+		color: #fff;
+		font-size: 30rpx;
+	}
+	
+	.function-name {
+		font-size: 30rpx;
+		color: #333;
+	}
+	
+	.function-right {
+		flex-direction: row;
+		align-items: center;
+	}
+	
+	.beta-tag {
+		color: #999;
+		font-size: 24rpx;
+		margin-right: 10rpx;
+	}
+	
+	.arrow-icon {
+		color: #ccc;
+		font-size: 30rpx;
+	}
+</style>

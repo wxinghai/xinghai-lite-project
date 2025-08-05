@@ -1,0 +1,420 @@
+<template>
+	<view class="container">
+		<!-- 日历头部 -->
+		<view class="calendar-header">
+			<text class="arrow-icon" @click="prevMonth">◀</text>
+			<view class="year-month">
+				<text class="year-text">{{ year }}</text>
+				<text class="month-text">{{ month }}月</text>
+			</view>
+			<text class="arrow-icon" @click="nextMonth">▶</text>
+			<view class="action-buttons">
+				<view class="back-month-btn" @click="goToCurrentMonth">
+					<text class="back-month-text">回到</text>
+					<text class="back-month-text">本月</text>
+					<text class="arrow-right">→</text>
+				</view>
+				<view class="report-btn" @click="showReport">
+					<image class="report-icon" src="/static/icon/report.png"></image>
+					<text class="report-text">月/年报</text>
+				</view>
+				<view class="settings-btn" @click="showSettings">
+					<image class="settings-icon" src="/static/icon/settings.png"></image>
+					<text class="settings-text">日历设置</text>
+				</view>
+			</view>
+		</view>
+		
+		<!-- 日历星期行 -->
+		<view class="weekday-row">
+			<view class="weekday-cell" v-for="(day, index) in weekdays" :key="index">
+				<text class="weekday-text">{{ day }}</text>
+			</view>
+		</view>
+		
+		<!-- 日历日期网格 -->
+		<scroll-view class="calendar-container" scroll-y="true" show-scrollbar="false">
+			<view class="calendar-grid">
+				<view class="calendar-row" v-for="(week, weekIndex) in calendarDays" :key="'week-'+weekIndex">
+					<view 
+						class="calendar-cell" 
+						v-for="(day, dayIndex) in week" 
+						:key="'day-'+dayIndex"
+						:class="{ 
+							inactive: !day.currentMonth, 
+							today: day.isToday,
+							has_event: day.hasEvent 
+						}"
+						@click="selectDate(day)"
+					>
+						<view class="day-container">
+							<text class="day-number" :class="{ 'inactive-text': !day.currentMonth, 'today-text': day.isToday }">{{ day.day }}</text>
+							<view class="event-indicator" v-if="day.hasEvent"></view>
+						</view>
+					</view>
+				</view>
+			</view>
+		</scroll-view>
+		
+		<!-- 底部标识 -->
+		<view class="footer">
+			<image class="logo" src="/static/logo.png"></image>
+			<text class="app-name">训记App</text>
+		</view>
+	</view>
+</template>
+
+<script>
+	export default {
+		data() {
+			return {
+				year: 2025,
+				month: 9,
+				weekdays: ['一', '二', '三', '四', '五', '六', '日'],
+				currentDate: new Date(),
+				selectedDate: null,
+				events: [
+					{ date: '2025-09-05', type: 'training' },
+					{ date: '2025-09-12', type: 'training' },
+					{ date: '2025-09-15', type: 'diet' },
+					{ date: '2025-09-20', type: 'training' }
+				]
+			}
+		},
+		computed: {
+			calendarDays() {
+				return this.generateCalendar(this.year, this.month);
+			}
+		},
+		onLoad() {
+			const today = new Date();
+			this.year = today.getFullYear();
+			this.month = today.getMonth() + 1;
+			
+			uni.setNavigationBarTitle({
+				title: '历史'
+			});
+		},
+		methods: {
+			generateCalendar(year, month) {
+				const calendar = [];
+				// 获取当月第一天是星期几
+				const firstDay = new Date(year, month - 1, 1);
+				const firstDayWeekday = firstDay.getDay() || 7; // 将周日(0)转换为7
+				
+				// 获取当月总天数
+				const daysInMonth = new Date(year, month, 0).getDate();
+				
+				// 获取上个月总天数
+				const daysInPrevMonth = new Date(year, month - 1, 0).getDate();
+				
+				// 当前日期，用于标记今天
+				const today = new Date();
+				const currentYear = today.getFullYear();
+				const currentMonth = today.getMonth() + 1;
+				const currentDay = today.getDate();
+				
+				let day = 1;
+				let nextMonthDay = 1;
+				
+				// 生成日历数据
+				for (let i = 0; i < 6; i++) {  // 6行
+					const week = [];
+					for (let j = 0; j < 7; j++) { // 7列
+						if (i === 0 && j < firstDayWeekday - 1) {
+							// 上个月的日期
+							const prevMonthDay = daysInPrevMonth - (firstDayWeekday - 2) + j;
+							let prevMonth = month - 1;
+							let prevYear = year;
+							if (prevMonth === 0) {
+								prevMonth = 12;
+								prevYear--;
+							}
+							const dateStr = `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(prevMonthDay).padStart(2, '0')}`;
+							week.push({
+								day: prevMonthDay,
+								currentMonth: false,
+								isToday: false,
+								hasEvent: this.hasEvent(dateStr),
+								date: dateStr
+							});
+						} else if (day > daysInMonth) {
+							// 下个月的日期
+							let nextMonth = month + 1;
+							let nextYear = year;
+							if (nextMonth > 12) {
+								nextMonth = 1;
+								nextYear++;
+							}
+							const dateStr = `${nextYear}-${String(nextMonth).padStart(2, '0')}-${String(nextMonthDay).padStart(2, '0')}`;
+							week.push({
+								day: nextMonthDay++,
+								currentMonth: false,
+								isToday: false,
+								hasEvent: this.hasEvent(dateStr),
+								date: dateStr
+							});
+						} else {
+							// 当月的日期
+							const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+							week.push({
+								day: day,
+								currentMonth: true,
+								isToday: year === currentYear && month === currentMonth && day === currentDay,
+								hasEvent: this.hasEvent(dateStr),
+								date: dateStr
+							});
+							day++;
+						}
+					}
+					calendar.push(week);
+					if (day > daysInMonth && i >= 4) break; // 如果已经处理完所有日期且至少有5行
+				}
+				
+				return calendar;
+			},
+			hasEvent(dateStr) {
+				return this.events.some(event => event.date === dateStr);
+			},
+			prevMonth() {
+				if (this.month === 1) {
+					this.year--;
+					this.month = 12;
+				} else {
+					this.month--;
+				}
+			},
+			nextMonth() {
+				if (this.month === 12) {
+					this.year++;
+					this.month = 1;
+				} else {
+					this.month++;
+				}
+			},
+			goToCurrentMonth() {
+				const today = new Date();
+				this.year = today.getFullYear();
+				this.month = today.getMonth() + 1;
+			},
+			selectDate(day) {
+				this.selectedDate = day.date;
+				uni.showToast({
+					title: `选择日期: ${day.date}`,
+					icon: 'none'
+				});
+				
+				// 实际应用中可以展示该日期的详细记录
+				// uni.navigateTo({
+				//   url: `/pages/daily-record/daily-record?date=${day.date}`
+				// });
+			},
+			showReport() {
+				uni.showToast({
+					title: '查看月/年报表',
+					icon: 'none'
+				});
+			},
+			showSettings() {
+				uni.showToast({
+					title: '日历设置',
+					icon: 'none'
+				});
+			}
+		}
+	}
+</script>
+
+<style>
+	.container {
+		flex: 1;
+		flex-direction: column;
+		background-color: #ffffff;
+		padding: 30rpx;
+	}
+	
+	.calendar-header {
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 40rpx;
+	}
+	
+	.arrow-icon {
+		font-size: 36rpx;
+		color: #666;
+		padding: 0 20rpx;
+	}
+	
+	.year-month {
+		flex-direction: column;
+		align-items: center;
+	}
+	
+	.year-text {
+		font-size: 42rpx;
+		font-weight: bold;
+		color: #333;
+	}
+	
+	.month-text {
+		font-size: 36rpx;
+		color: #666;
+	}
+	
+	.action-buttons {
+		flex-direction: row;
+		align-items: center;
+	}
+	
+	.back-month-btn {
+		background-color: #e6f2ff;
+		padding: 10rpx 20rpx;
+		border-radius: 10rpx;
+		margin-right: 20rpx;
+		flex-direction: row;
+		align-items: center;
+	}
+	
+	.back-month-text {
+		font-size: 24rpx;
+		color: #0A84FF;
+	}
+	
+	.arrow-right {
+		font-size: 24rpx;
+		color: #0A84FF;
+		margin-left: 6rpx;
+	}
+	
+	.report-btn {
+		flex-direction: column;
+		align-items: center;
+		margin-right: 20rpx;
+	}
+	
+	.report-icon {
+		width: 40rpx;
+		height: 40rpx;
+		margin-bottom: 5rpx;
+	}
+	
+	.report-text {
+		font-size: 24rpx;
+		color: #0A84FF;
+	}
+	
+	.settings-btn {
+		flex-direction: column;
+		align-items: center;
+	}
+	
+	.settings-icon {
+		width: 40rpx;
+		height: 40rpx;
+		margin-bottom: 5rpx;
+	}
+	
+	.settings-text {
+		font-size: 24rpx;
+		color: #666;
+	}
+	
+	.weekday-row {
+		flex-direction: row;
+		border-bottom-width: 1rpx;
+		border-bottom-color: #e0e0e0;
+		margin-bottom: 10rpx;
+	}
+	
+	.weekday-cell {
+		flex: 1;
+		padding: 20rpx 0;
+		align-items: center;
+	}
+	
+	.weekday-text {
+		font-size: 28rpx;
+		color: #333;
+	}
+	
+	.calendar-container {
+		flex: 1;
+	}
+	
+	.calendar-grid {
+		flex-direction: column;
+	}
+	
+	.calendar-row {
+		height: 120rpx;
+		flex-direction: row;
+	}
+	
+	.calendar-cell {
+		flex: 1;
+		justify-content: center;
+		align-items: center;
+		padding: 10rpx 0;
+	}
+	
+	.calendar-cell.inactive {
+		opacity: 0.4;
+	}
+	
+	.calendar-cell.today {
+		background-color: rgba(10, 132, 255, 0.1);
+		border-radius: 8rpx;
+	}
+	
+	.calendar-cell.has_event .day-number {
+		font-weight: bold;
+		color: #0A84FF;
+	}
+	
+	.day-container {
+		flex-direction: column;
+		align-items: center;
+	}
+	
+	.day-number {
+		font-size: 32rpx;
+		color: #333;
+		margin-bottom: 8rpx;
+	}
+	
+	.inactive-text {
+		color: #999;
+	}
+	
+	.today-text {
+		color: #0A84FF;
+		font-weight: bold;
+	}
+	
+	.event-indicator {
+		width: 8rpx;
+		height: 8rpx;
+		border-radius: 4rpx;
+		background-color: #0A84FF;
+	}
+	
+	.footer {
+		flex-direction: row;
+		justify-content: center;
+		align-items: center;
+		margin-top: 20rpx;
+		padding-bottom: 30rpx;
+	}
+	
+	.logo {
+		width: 40rpx;
+		height: 40rpx;
+		margin-right: 10rpx;
+	}
+	
+	.app-name {
+		font-size: 28rpx;
+		color: #999;
+	}
+</style> 

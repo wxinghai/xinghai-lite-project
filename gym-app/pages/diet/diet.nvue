@@ -1,0 +1,582 @@
+<template>
+	<view class="container">
+		<!-- 搜索栏 -->
+		<view class="search-bar">
+			<view class="search-box" @click="focusSearch">
+				<text class="search-icon">🔍</text>
+				<input 
+					class="search-input" 
+					placeholder="输入动作名字搜索" 
+					placeholder-style="color: #999;" 
+					confirm-type="search"
+					v-model="searchKeyword"
+					@confirm="searchFood"
+					ref="searchInput"
+				/>
+			</view>
+			<text class="add-icon" @click="addFood">+</text>
+		</view>
+		
+		<!-- 饮食记录模块 -->
+		<view class="diet-record">
+			<text class="diet-title">饮食记录</text>
+			
+			<!-- 饮食信息卡片 -->
+			<view class="diet-card">
+				<view class="diet-header">
+					<text class="diet-current">已进食 {{ dietData.consumed }}</text>
+					<text class="diet-total">/ {{ dietData.target || '--' }} 大卡</text>
+				</view>
+				
+				<!-- 营养素网格 -->
+				<view class="nutrition-grid">
+					<!-- 蛋白质 -->
+					<view class="nutrition-item protein">
+						<text class="nutrition-name">蛋白(g)</text>
+						<text class="nutrition-value">{{ dietData.protein }}</text>
+						<text class="nutrition-percent">{{ dietData.proteinPercent }}%</text>
+					</view>
+					
+					<!-- 碳水 -->
+					<view class="nutrition-item carb">
+						<text class="nutrition-name">碳水(g)</text>
+						<text class="nutrition-value">{{ dietData.carbs }}</text>
+						<text class="nutrition-percent">{{ dietData.carbsPercent }}%</text>
+					</view>
+					
+					<!-- 脂肪 -->
+					<view class="nutrition-item fat">
+						<text class="nutrition-name">脂肪(g)</text>
+						<text class="nutrition-value">{{ dietData.fat }}</text>
+						<text class="nutrition-percent">{{ dietData.fatPercent }}%</text>
+					</view>
+					
+					<!-- 饮水 -->
+					<view class="nutrition-item water">
+						<text class="nutrition-name">饮水(ml)</text>
+						<text class="nutrition-value">{{ dietData.water }} / {{ dietData.waterTarget }}</text>
+						<text class="nutrition-percent">{{ dietData.waterPercent }}%</text>
+					</view>
+				</view>
+				
+				<!-- 首页显示选项 -->
+				<view class="display-option" @click="toggleDisplayInHome">
+					<view class="option-circle" :class="{ 'checked': displayInHome }"></view>
+					<text class="option-text">在首页显示饮食模块</text>
+				</view>
+			</view>
+			
+			<!-- 快速操作按钮 -->
+			<view class="quick-actions">
+				<view class="action-row">
+					<!-- 新建训练 -->
+					<view class="action-btn" @click="navigateTo('new-training')">
+						<view class="action-icon blue">
+							<text class="action-icon-text">🏋️</text>
+						</view>
+						<text class="action-text">新建训练</text>
+					</view>
+					
+					<!-- 新建有氧 -->
+					<view class="action-btn" @click="navigateTo('new-cardio')">
+						<view class="action-icon teal">
+							<text class="action-icon-text">🏃</text>
+						</view>
+						<text class="action-text">新建有氧</text>
+					</view>
+					
+					<!-- 新建HIIT -->
+					<view class="action-btn" @click="navigateTo('new-hiit')">
+						<view class="action-icon yellow">
+							<text class="action-icon-text">🏃‍♂️</text>
+						</view>
+						<text class="action-text">新建HIIT</text>
+					</view>
+					
+					<!-- 新建休息 -->
+					<view class="action-btn" @click="navigateTo('new-rest')">
+						<view class="action-icon purple">
+							<text class="action-icon-text">☕</text>
+						</view>
+						<text class="action-text">新建休息</text>
+					</view>
+				</view>
+				
+				<view class="action-row">
+					<!-- 身体数据 -->
+					<view class="action-btn" @click="navigateTo('body-data')">
+						<view class="action-icon pink">
+							<text class="action-icon-text">👤</text>
+						</view>
+						<text class="action-text">身体数据</text>
+					</view>
+					
+					<!-- 经期记录 -->
+					<view class="action-btn" @click="navigateTo('period-record')">
+						<view class="action-icon pink">
+							<text class="action-icon-text">💧</text>
+						</view>
+						<text class="action-text">经期记录</text>
+					</view>
+				</view>
+			</view>
+		</view>
+		
+		<!-- 食品分类和列表 -->
+		<scroll-view class="food-container" scroll-y="true" show-scrollbar="false">
+			<block v-for="(category, categoryIndex) in foodCategories" :key="categoryIndex">
+				<!-- 分类标题 -->
+				<view class="category-title">
+					<text class="category-title-text">{{ category.name }}</text>
+				</view>
+				
+				<!-- 食品列表 -->
+				<view class="action-list">
+					<!-- 食品行 -->
+					<view class="action-row" v-for="(row, rowIndex) in Math.ceil(category.foods.length / 2)" :key="rowIndex">
+						<!-- 左侧食品 -->
+						<view 
+							class="action-item" 
+							v-if="category.foods[(row-1)*2]"
+							@click="viewFoodDetail(category.foods[(row-1)*2])"
+						>
+							<view class="action-tutorial" v-if="category.foods[(row-1)*2].hasNutritionInfo">
+								<text class="tutorial-text">营养</text>
+							</view>
+							<image 
+								class="action-image" 
+								:src="category.foods[(row-1)*2].image || '/static/foods/default.png'" 
+								mode="aspectFill"
+							></image>
+							<text class="action-name">{{ category.foods[(row-1)*2].name }}</text>
+						</view>
+						
+						<!-- 右侧食品 -->
+						<view 
+							class="action-item" 
+							v-if="category.foods[(row-1)*2+1]"
+							@click="viewFoodDetail(category.foods[(row-1)*2+1])"
+						>
+							<view class="action-tutorial" v-if="category.foods[(row-1)*2+1].hasNutritionInfo">
+								<text class="tutorial-text">营养</text>
+							</view>
+							<image 
+								class="action-image" 
+								:src="category.foods[(row-1)*2+1].image || '/static/foods/default.png'" 
+								mode="aspectFill"
+							></image>
+							<text class="action-name">{{ category.foods[(row-1)*2+1].name }}</text>
+						</view>
+						
+						<!-- 空白占位 -->
+						<view class="action-item placeholder" v-if="(row-1)*2+1 >= category.foods.length"></view>
+					</view>
+				</view>
+			</block>
+		</scroll-view>
+	</view>
+</template>
+
+<script>
+	export default {
+		data() {
+			return {
+				searchKeyword: '',
+				displayInHome: false,
+				dietData: {
+					consumed: 0,
+					target: 2500,
+					protein: 0,
+					proteinPercent: 0,
+					carbs: 0,
+					carbsPercent: 0,
+					fat: 0,
+					fatPercent: 0,
+					water: 0,
+					waterTarget: 2000,
+					waterPercent: 0
+				},
+				foodCategories: [
+					{
+						name: '杠铃',
+						foods: [
+							{
+								id: 1,
+								name: '杠铃卧推',
+								image: '/static/actions/bench-press.png',
+								hasNutritionInfo: true
+							},
+							{
+								id: 2,
+								name: '暂停卧推',
+								image: '/static/actions/pause-press.png',
+								hasNutritionInfo: true
+							}
+						]
+					},
+					{
+						name: '哑铃',
+						foods: []
+					}
+				]
+			}
+		},
+		onLoad() {
+			uni.setNavigationBarTitle({
+				title: '饮食记录'
+			});
+			
+			// 模拟获取饮食数据
+			this.getDietData();
+		},
+		methods: {
+			focusSearch() {
+				this.$nextTick(() => {
+					this.$refs.searchInput.focus();
+				});
+			},
+			searchFood() {
+				if (!this.searchKeyword.trim()) return;
+				
+				uni.showToast({
+					title: '搜索: ' + this.searchKeyword,
+					icon: 'none'
+				});
+				
+				// 实际应用中会调用搜索API
+			},
+			addFood() {
+				uni.showToast({
+					title: '添加食品',
+					icon: 'none'
+				});
+				
+				// 实际应用中可以打开添加食品的表单
+			},
+			toggleDisplayInHome() {
+				this.displayInHome = !this.displayInHome;
+				
+				uni.showToast({
+					title: this.displayInHome ? '已添加到首页显示' : '已从首页移除',
+					icon: 'none'
+				});
+			},
+			navigateTo(page) {
+				uni.showToast({
+					title: `跳转到 ${page} 页面`,
+					icon: 'none'
+				});
+				
+				// 实际应用中可以跳转到对应页面
+				// uni.navigateTo({
+				//   url: `/pages/${page}/${page}`
+				// });
+			},
+			viewFoodDetail(food) {
+				uni.showToast({
+					title: `查看食品: ${food.name}`,
+					icon: 'none'
+				});
+				
+				// 实际应用中可以跳转到食品详情页
+				// uni.navigateTo({
+				//   url: `/pages/food-detail/food-detail?id=${food.id}`
+				// });
+			},
+			getDietData() {
+				// 模拟从API获取数据
+				// 实际应用中会从服务器获取数据
+				setTimeout(() => {
+					this.dietData = {
+						consumed: 1250,
+						target: 2500,
+						protein: 65,
+						proteinPercent: 45,
+						carbs: 120,
+						carbsPercent: 30,
+						fat: 40,
+						fatPercent: 25,
+						water: 800,
+						waterTarget: 2000,
+						waterPercent: 40
+					};
+				}, 500);
+			}
+		}
+	}
+</script>
+
+<style>
+	.container {
+		flex: 1;
+		flex-direction: column;
+		background-color: #f5f5f5;
+	}
+	
+	.search-bar {
+		flex-direction: row;
+		padding: 20rpx;
+		align-items: center;
+		background-color: #f0f0f0;
+	}
+	
+	.search-box {
+		flex: 1;
+		flex-direction: row;
+		align-items: center;
+		background-color: #fff;
+		border-radius: 40rpx;
+		padding: 15rpx 30rpx;
+		margin-right: 20rpx;
+	}
+	
+	.search-icon {
+		font-size: 32rpx;
+		color: #999;
+		margin-right: 10rpx;
+	}
+	
+	.search-input {
+		flex: 1;
+		height: 60rpx;
+		font-size: 28rpx;
+	}
+	
+	.add-icon {
+		width: 70rpx;
+		height: 70rpx;
+		background-color: #0A84FF;
+		border-radius: 35rpx;
+		text-align: center;
+		line-height: 60rpx;
+		color: #fff;
+		font-size: 50rpx;
+	}
+	
+	.diet-record {
+		padding: 20rpx;
+	}
+	
+	.diet-title {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #333;
+		margin-bottom: 20rpx;
+	}
+	
+	.diet-card {
+		background-color: #fff;
+		border-radius: 16rpx;
+		padding: 30rpx;
+		margin-bottom: 30rpx;
+	}
+	
+	.diet-header {
+		flex-direction: row;
+		align-items: flex-end;
+		margin-bottom: 30rpx;
+	}
+	
+	.diet-current {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #333;
+	}
+	
+	.diet-total {
+		font-size: 28rpx;
+		color: #999;
+	}
+	
+	.nutrition-grid {
+		flex-direction: row;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		margin-bottom: 30rpx;
+	}
+	
+	.nutrition-item {
+		width: 48%;
+		height: 180rpx;
+		border-radius: 16rpx;
+		padding: 20rpx;
+		margin-bottom: 20rpx;
+		flex-direction: column;
+		justify-content: center;
+	}
+	
+	.nutrition-item.protein {
+		background-color: #fff5e6;
+	}
+	
+	.nutrition-item.carb {
+		background-color: #e6f4ff;
+	}
+	
+	.nutrition-item.fat {
+		background-color: #ffe6e6;
+	}
+	
+	.nutrition-item.water {
+		background-color: #e6fffa;
+	}
+	
+	.nutrition-name {
+		font-size: 28rpx;
+		color: #999;
+		margin-bottom: 10rpx;
+	}
+	
+	.nutrition-value {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #333;
+		margin-bottom: 10rpx;
+	}
+	
+	.nutrition-percent {
+		font-size: 24rpx;
+		color: #999;
+	}
+	
+	.display-option {
+		flex-direction: row;
+		align-items: center;
+	}
+	
+	.option-circle {
+		width: 40rpx;
+		height: 40rpx;
+		border-radius: 20rpx;
+		border-width: 2rpx;
+		border-color: #ccc;
+		margin-right: 10rpx;
+	}
+	
+	.option-circle.checked {
+		background-color: #0A84FF;
+		border-color: #0A84FF;
+	}
+	
+	.option-text {
+		font-size: 28rpx;
+		color: #666;
+	}
+	
+	.quick-actions {
+		flex-direction: column;
+	}
+	
+	.action-row {
+		flex-direction: row;
+		justify-content: space-around;
+		margin-bottom: 30rpx;
+	}
+	
+	.action-btn {
+		flex-direction: column;
+		align-items: center;
+	}
+	
+	.action-icon {
+		width: 100rpx;
+		height: 100rpx;
+		border-radius: 50rpx;
+		justify-content: center;
+		align-items: center;
+		margin-bottom: 10rpx;
+	}
+	
+	.action-icon.blue {
+		background-color: #5eb5f8;
+	}
+	
+	.action-icon.teal {
+		background-color: #4cd6c0;
+	}
+	
+	.action-icon.yellow {
+		background-color: #f0c54f;
+	}
+	
+	.action-icon.purple {
+		background-color: #a78be8;
+	}
+	
+	.action-icon.pink {
+		background-color: #ff6b81;
+	}
+	
+	.action-icon-text {
+		font-size: 42rpx;
+		color: #fff;
+	}
+	
+	.action-text {
+		font-size: 26rpx;
+		color: #666;
+	}
+	
+	.food-container {
+		flex: 1;
+	}
+	
+	.category-title {
+		padding: 20rpx;
+	}
+	
+	.category-title-text {
+		font-size: 36rpx;
+		font-weight: bold;
+		color: #333;
+	}
+	
+	.action-list {
+		padding: 0 20rpx;
+	}
+	
+	.action-row {
+		flex-direction: row;
+		justify-content: space-between;
+		margin-bottom: 30rpx;
+	}
+	
+	.action-item {
+		width: 340rpx;
+		background-color: #fff;
+		border-radius: 16rpx;
+		overflow: hidden;
+		position: relative;
+	}
+	
+	.action-item.placeholder {
+		background-color: transparent;
+	}
+	
+	.action-tutorial {
+		position: absolute;
+		top: 10rpx;
+		left: 10rpx;
+		background-color: #0A84FF;
+		padding: 6rpx 16rpx;
+		border-radius: 20rpx;
+	}
+	
+	.tutorial-text {
+		color: #fff;
+		font-size: 24rpx;
+	}
+	
+	.action-image {
+		width: 340rpx;
+		height: 200rpx;
+		background-color: #f0f0f0;
+	}
+	
+	.action-name {
+		font-size: 28rpx;
+		color: #333;
+		padding: 16rpx;
+		text-align: center;
+	}
+</style> 
