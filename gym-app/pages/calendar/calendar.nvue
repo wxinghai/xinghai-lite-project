@@ -2,17 +2,28 @@
 	<view class="container">
 		<!-- 日历头部 -->
 		<view class="calendar-header">
-			<text class="arrow-icon" @click="prevMonth">◀</text>
+
+			<view class="right-one">	
+			
+			<view class="arrow-icon" @click="prevMonth"><text>◀</text></view>
 			<view class="year-month">
 				<text class="year-text">{{ year }}</text>
 				<text class="month-text">{{ month }}月</text>
 			</view>
-			<text class="arrow-icon" @click="nextMonth">▶</text>
+
+			<view class="arrow-icon" @click="nextMonth"><text>▶</text></view>
+			</view>
+
+			
 			<view class="action-buttons">
-				<view class="back-month-btn" @click="goToCurrentMonth">
+				<view class="back-month-btn" v-if="!isCurrentMonth" @click="goToCurrentMonth">
 					<text class="back-month-text">回到</text>
 					<text class="back-month-text">本月</text>
 					<text class="arrow-right">→</text>
+				</view>
+				<!-- 占位元素，保持布局稳定 -->
+				<view class="back-month-placeholder" v-if="isCurrentMonth">
+					<text style="width: 134rpx;"></text>
 				</view>
 				<view class="report-btn" @click="showReport">
 					<image class="report-icon" src="/static/icon/report.png"></image>
@@ -32,29 +43,85 @@
 			</view>
 		</view>
 		
-		<!-- 日历日期网格 -->
-		<scroll-view class="calendar-container" scroll-y="true" show-scrollbar="false">
-			<view class="calendar-grid">
-				<view class="calendar-row" v-for="(week, weekIndex) in calendarDays" :key="'week-'+weekIndex">
-					<view 
-						class="calendar-cell" 
-						v-for="(day, dayIndex) in week" 
-						:key="'day-'+dayIndex"
-						:class="{ 
-							inactive: !day.currentMonth, 
-							today: day.isToday,
-							has_event: day.hasEvent 
-						}"
-						@click="selectDate(day)"
-					>
-						<view class="day-container">
-							<text class="day-number" :class="{ 'inactive-text': !day.currentMonth, 'today-text': day.isToday }">{{ day.day }}</text>
-							<view class="event-indicator" v-if="day.hasEvent"></view>
+		<!-- 日历日期网格 - 使用swiper组件实现左右滑动 -->
+		<swiper 
+			class="calendar-container" 
+			:current="1"
+			@change="handleSwiperChange"
+			:circular="true"
+		>
+			<!-- 上个月 -->
+			<swiper-item>
+				<view class="calendar-grid">
+					<view class="calendar-row" v-for="(week, weekIndex) in prevCalendarDays" :key="'prev-week-'+weekIndex">
+						<view 
+							class="calendar-cell" 
+							v-for="(day, dayIndex) in week" 
+							:key="'prev-day-'+dayIndex"
+							:class="{ 
+								inactive: !day.currentMonth, 
+								today: day.isToday,
+								has_event: day.hasEvent 
+							}"
+							@click="selectDate(day)"
+						>
+							<view class="day-container">
+								<text class="day-number" :class="{ 'inactive-text': !day.currentMonth, 'today-text': day.isToday }">{{ day.day }}</text>
+								<view class="event-indicator" v-if="day.hasEvent"></view>
+							</view>
 						</view>
 					</view>
 				</view>
-			</view>
-		</scroll-view>
+			</swiper-item>
+			
+			<!-- 当前月 -->
+			<swiper-item>
+				<view class="calendar-grid">
+					<view class="calendar-row" v-for="(week, weekIndex) in calendarDays" :key="'week-'+weekIndex">
+						<view 
+							class="calendar-cell" 
+							v-for="(day, dayIndex) in week" 
+							:key="'day-'+dayIndex"
+							:class="{ 
+								inactive: !day.currentMonth, 
+								today: day.isToday,
+								has_event: day.hasEvent 
+							}"
+							@click="selectDate(day)"
+						>
+							<view class="day-container">
+								<text class="day-number" :class="{ 'inactive-text': !day.currentMonth, 'today-text': day.isToday }">{{ day.day }}</text>
+								<view class="event-indicator" v-if="day.hasEvent"></view>
+							</view>
+						</view>
+					</view>
+				</view>
+			</swiper-item>
+			
+			<!-- 下个月 -->
+			<swiper-item>
+				<view class="calendar-grid">
+					<view class="calendar-row" v-for="(week, weekIndex) in nextCalendarDays" :key="'next-week-'+weekIndex">
+						<view 
+							class="calendar-cell" 
+							v-for="(day, dayIndex) in week" 
+							:key="'next-day-'+dayIndex"
+							:class="{ 
+								inactive: !day.currentMonth, 
+								today: day.isToday,
+								has_event: day.hasEvent 
+							}"
+							@click="selectDate(day)"
+						>
+							<view class="day-container">
+								<text class="day-number" :class="{ 'inactive-text': !day.currentMonth, 'today-text': day.isToday }">{{ day.day }}</text>
+								<view class="event-indicator" v-if="day.hasEvent"></view>
+							</view>
+						</view>
+					</view>
+				</view>
+			</swiper-item>
+		</swiper>
 		
 		<!-- 底部标识 -->
 		<view class="footer">
@@ -78,12 +145,35 @@
 					{ date: '2025-09-12', type: 'training' },
 					{ date: '2025-09-15', type: 'diet' },
 					{ date: '2025-09-20', type: 'training' }
-				]
+				],
+				swiperChanging: false
 			}
 		},
 		computed: {
 			calendarDays() {
 				return this.generateCalendar(this.year, this.month);
+			},
+			prevCalendarDays() {
+				let prevYear = this.year;
+				let prevMonth = this.month - 1;
+				if (prevMonth === 0) {
+					prevMonth = 12;
+					prevYear--;
+				}
+				return this.generateCalendar(prevYear, prevMonth);
+			},
+			nextCalendarDays() {
+				let nextYear = this.year;
+				let nextMonth = this.month + 1;
+				if (nextMonth === 13) {
+					nextMonth = 1;
+					nextYear++;
+				}
+				return this.generateCalendar(nextYear, nextMonth);
+			},
+			isCurrentMonth() {
+				const today = new Date();
+				return this.year === today.getFullYear() && this.month === today.getMonth() + 1;
 			}
 		},
 		onLoad() {
@@ -220,6 +310,25 @@
 					title: '日历设置',
 					icon: 'none'
 				});
+			},
+			handleSwiperChange(e) {
+				if (this.swiperChanging) return;
+				
+				this.swiperChanging = true;
+				const current = e.detail.current;
+				
+				if (current === 0) {
+					// 向左滑动，显示上个月
+					this.prevMonth();
+				} else if (current === 2) {
+					// 向右滑动，显示下个月
+					this.nextMonth();
+				}
+				
+				// 重置swiper的位置到中间
+				setTimeout(() => {
+					this.swiperChanging = false;
+				}, 500);
 			}
 		}
 	}
@@ -239,11 +348,22 @@
 		align-items: center;
 		margin-bottom: 40rpx;
 	}
+	.right-one {
+		width: 130px;
+		display: flex;
+		flex-direction: row;
+		align-item: center;
+		justify-content:start;
+		 
+	}
 	
 	.arrow-icon {
 		font-size: 36rpx;
 		color: #666;
-		padding: 0 20rpx;
+		padding: 0 25rpx;
+		display:flex;
+		justify-content:center;
+		
 	}
 	
 	.year-month {
@@ -265,13 +385,14 @@
 	.action-buttons {
 		flex-direction: row;
 		align-items: center;
+		 
 	}
 	
 	.back-month-btn {
 		background-color: #e6f2ff;
 		padding: 10rpx 20rpx;
 		border-radius: 10rpx;
-		margin-right: 20rpx;
+		margin-right: 30rpx;
 		flex-direction: row;
 		align-items: center;
 	}
@@ -285,6 +406,18 @@
 		font-size: 24rpx;
 		color: #0A84FF;
 		margin-left: 6rpx;
+	}
+	
+	/* 占位元素，与回到本月按钮占用相同空间 */
+	.back-month-placeholder {
+		background-color: transparent;
+		padding: 10rpx 20rpx;
+		border-radius: 10rpx;
+		margin-right: 20rpx;
+		flex-direction: row;
+		align-items: center;
+		width: 134rpx; /* 实际测量的"回到本月→"按钮宽度 */
+		height: 52rpx; /* 包含padding的高度 */
 	}
 	
 	.report-btn {
