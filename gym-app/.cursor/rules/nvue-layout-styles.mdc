@@ -1,5 +1,7 @@
 ---
-globs: *.nvue
+description: 
+globs: 
+alwaysApply: true
 ---
 # NVue布局和样式规则
 

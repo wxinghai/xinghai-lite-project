@@ -43,295 +43,362 @@
 			</view>
 		</view>
 		
-		<!-- 日历日期网格 - 使用swiper组件实现左右滑动 -->
-		<swiper 
-			class="calendar-container" 
-			:current="1"
-			@change="handleSwiperChange"
-			:circular="true"
-		>
-			<!-- 上个月 -->
-			<swiper-item>
-				<view class="calendar-grid">
-					<view class="calendar-row" v-for="(week, weekIndex) in prevCalendarDays" :key="'prev-week-'+weekIndex">
-						<view 
-							class="calendar-cell" 
-							v-for="(day, dayIndex) in week" 
-							:key="'prev-day-'+dayIndex"
-							:class="{ 
-								inactive: !day.currentMonth, 
-								today: day.isToday,
-								has_event: day.hasEvent 
-							}"
-							@click="selectDate(day)"
-						>
-							<view class="day-container">
-								<text class="day-number" :class="{ 'inactive-text': !day.currentMonth, 'today-text': day.isToday }">{{ day.day }}</text>
-								<view class="event-indicator" v-if="day.hasEvent"></view>
+		<!-- 日历日期网格 -->
+		<view class="calendar-container" render-whole="true">
+			<view class="calendar-grid">
+				<view class="calendar-row" v-for="(week, weekIndex) in calendarDays" :key="'week-'+weekIndex">
+					<view 
+						class="calendar-cell" 
+						v-for="(day, dayIndex) in week" 
+						:key="'day-'+dayIndex"
+						:class="{ 
+							inactive: !day.currentMonth, 
+							today: day.isToday,
+							selected: selectedDate === day.date
+						}"
+						@click="selectDate(day)"
+					>
+						<view class="day-container">
+							<!-- 日期数字 -->
+							<text class="day-number" :class="{ 'inactive-text': !day.currentMonth, 'today-text': day.isToday }">{{ day.day }}</text>
+							
+							<!-- 已完成训练容量（蓝色背景） -->
+							<view class="capacity-badge" v-if="getCompletedCapacity(day.date) > 0">
+								<text class="capacity-text">{{ getCompletedCapacity(day.date) }}</text>
+							</view>
+							
+							<!-- 休息日标记（绿色背景） -->
+							<view class="rest-day-badge" v-if="isRestDay(day.date)">
+								<text class="rest-day-text">休息日</text>
+							</view>
+							
+							<!-- 训练计划名称（黑色背景）- 修改为显示多个计划，最多4个 -->
+							<view v-for="(plan, index) in getTrainingPlansForDay(day.date)" 
+								:key="plan.id" 
+								class="plan-name-badge">
+								<text class="plan-name-text">{{ plan.name }}</text>
+							</view>
+							
+							<!-- 显示超出的计划数量 -->
+							<view v-if="getExcessPlanCount(day.date) > 0" class="more-plans-badge">
+								<text class="more-plans-text">+{{ getExcessPlanCount(day.date) }}</text>
+							</view>
+							
+							<!-- 特殊标记（可选，如连续训练天数等） -->
+							<view class="special-mark-badge" v-if="getSpecialMark(day.date)">
+								<text class="special-mark-text">{{ getSpecialMark(day.date) }}</text>
 							</view>
 						</view>
 					</view>
 				</view>
-			</swiper-item>
-			
-			<!-- 当前月 -->
-			<swiper-item>
-				<view class="calendar-grid">
-					<view class="calendar-row" v-for="(week, weekIndex) in calendarDays" :key="'week-'+weekIndex">
-						<view 
-							class="calendar-cell" 
-							v-for="(day, dayIndex) in week" 
-							:key="'day-'+dayIndex"
-							:class="{ 
-								inactive: !day.currentMonth, 
-								today: day.isToday,
-								has_event: day.hasEvent 
-							}"
-							@click="selectDate(day)"
-						>
-							<view class="day-container">
-								<text class="day-number" :class="{ 'inactive-text': !day.currentMonth, 'today-text': day.isToday }">{{ day.day }}</text>
-								<view class="event-indicator" v-if="day.hasEvent"></view>
-							</view>
-						</view>
-					</view>
-				</view>
-			</swiper-item>
-			
-			<!-- 下个月 -->
-			<swiper-item>
-				<view class="calendar-grid">
-					<view class="calendar-row" v-for="(week, weekIndex) in nextCalendarDays" :key="'next-week-'+weekIndex">
-						<view 
-							class="calendar-cell" 
-							v-for="(day, dayIndex) in week" 
-							:key="'next-day-'+dayIndex"
-							:class="{ 
-								inactive: !day.currentMonth, 
-								today: day.isToday,
-								has_event: day.hasEvent 
-							}"
-							@click="selectDate(day)"
-						>
-							<view class="day-container">
-								<text class="day-number" :class="{ 'inactive-text': !day.currentMonth, 'today-text': day.isToday }">{{ day.day }}</text>
-								<view class="event-indicator" v-if="day.hasEvent"></view>
-							</view>
-						</view>
-					</view>
-				</view>
-			</swiper-item>
-		</swiper>
+			</view>
+		</view>
 		
 		<!-- 底部标识 -->
 		<view class="footer">
 			<image class="logo" src="/static/logo.png"></image>
 			<text class="app-name">训记App</text>
 		</view>
+		
+		<!-- 训练日期弹窗 -->
+		<TrainingDatePopup v-if="showTrainingPopup" :date="selectedDate"></TrainingDatePopup>
 	</view>
 </template>
 
 <script>
-	export default {
-		data() {
-			return {
-				year: 2025,
-				month: 9,
-				weekdays: ['一', '二', '三', '四', '五', '六', '日'],
-				currentDate: new Date(),
-				selectedDate: null,
-				events: [
-					{ date: '2025-09-05', type: 'training' },
-					{ date: '2025-09-12', type: 'training' },
-					{ date: '2025-09-15', type: 'diet' },
-					{ date: '2025-09-20', type: 'training' }
-				],
-				swiperChanging: false
-			}
-		},
-		computed: {
-			calendarDays() {
-				return this.generateCalendar(this.year, this.month);
-			},
-			prevCalendarDays() {
-				let prevYear = this.year;
-				let prevMonth = this.month - 1;
-				if (prevMonth === 0) {
-					prevMonth = 12;
-					prevYear--;
-				}
-				return this.generateCalendar(prevYear, prevMonth);
-			},
-			nextCalendarDays() {
-				let nextYear = this.year;
-				let nextMonth = this.month + 1;
-				if (nextMonth === 13) {
-					nextMonth = 1;
-					nextYear++;
-				}
-				return this.generateCalendar(nextYear, nextMonth);
-			},
-			isCurrentMonth() {
-				const today = new Date();
-				return this.year === today.getFullYear() && this.month === today.getMonth() + 1;
-			}
-		},
-		onLoad() {
-			const today = new Date();
-			this.year = today.getFullYear();
-			this.month = today.getMonth() + 1;
+import TrainingDatePopup from '@/components/TrainingDatePopup.nvue';
+
+export default {
+	components: {
+		TrainingDatePopup
+	},
+	data() {
+		const today = new Date();
+		const currentYear = today.getFullYear();
+		const currentMonth = today.getMonth() + 1;
+		
+		return {
+			year: currentYear, // 年
+			month: currentMonth, // 月
+			weekdays: ['一', '二', '三', '四', '五', '六', '日'],
+			currentDate: new Date(),
+			selectedDate: null,
+			events: [
+				{ date: '2025-09-05', type: 'training' },
+				{ date: '2025-09-12', type: 'training' },
+				{ date: '2025-09-15', type: 'diet' },
+				{ date: '2025-09-20', type: 'training' }
+			],
+			eventsCache: {}, // 用于缓存事件查询结果
+			// 训练计划数据
+			trainingPlans: [
+				{ id: 1, date: '2025-08-05', name: '胸训', capacity: 12260, completed: true, isRest: false },
+				{ id: 2, date: '2025-08-05', name: '背训', capacity: 16531, completed: true, isRest: false },
+				{ id: 3, date: '2025-08-05', name: '腿训', capacity: 29155, completed: true, isRest: false },
+				{ id: 4, date: '2025-08-05', name: '肩训', capacity: 17006, completed: true, isRest: false },
+				{ id: 5, date: '2025-09-20', name: '胸训', capacity: 15420, completed: false, isRest: false },
+				{ id: 6, date: '2025-09-07', name: '背训', capacity: 16531, completed: true, isRest: false },
+				// 添加休息日作为特殊训练计划（capacity为0）
+				{ id: 7, date: '2025-09-01', name: '休息日', capacity: 0, completed: true, isRest: true },
+				{ id: 8, date: '2025-09-09', name: '休息日', capacity: 0, completed: true, isRest: true },
+				{ id: 9, date: '2025-09-17', name: '休息日', capacity: 0, completed: true, isRest: true },
+				{ id: 10, date: '2025-09-21', name: '休息日', capacity: 0, completed: true, isRest: true },
+				{ id: 11, date: '2025-09-26', name: '休息日', capacity: 0, completed: true, isRest: true }
+			],
+			nextPlanId: 12, // 更新nextPlanId
 			
-			uni.setNavigationBarTitle({
-				title: '历史'
-			});
+			// 移除独立的休息日数组，已集成到训练计划中
+			// restDays: ['2025-09-01', '2025-09-05', '2025-09-09', '2025-09-17', '2025-09-21', '2025-09-26']
+			showTrainingPopup: false
+		}
+	},
+	computed: {
+		calendarDays() {
+			return this.generateCalendar(this.year, this.month);
 		},
-		methods: {
-			generateCalendar(year, month) {
-				const calendar = [];
-				// 获取当月第一天是星期几
-				const firstDay = new Date(year, month - 1, 1);
-				const firstDayWeekday = firstDay.getDay() || 7; // 将周日(0)转换为7
-				
-				// 获取当月总天数
-				const daysInMonth = new Date(year, month, 0).getDate();
-				
-				// 获取上个月总天数
-				const daysInPrevMonth = new Date(year, month - 1, 0).getDate();
-				
-				// 当前日期，用于标记今天
-				const today = new Date();
-				const currentYear = today.getFullYear();
-				const currentMonth = today.getMonth() + 1;
-				const currentDay = today.getDate();
-				
-				let day = 1;
-				let nextMonthDay = 1;
-				
-				// 生成日历数据
-				for (let i = 0; i < 6; i++) {  // 6行
-					const week = [];
-					for (let j = 0; j < 7; j++) { // 7列
-						if (i === 0 && j < firstDayWeekday - 1) {
-							// 上个月的日期
-							const prevMonthDay = daysInPrevMonth - (firstDayWeekday - 2) + j;
-							let prevMonth = month - 1;
-							let prevYear = year;
-							if (prevMonth === 0) {
-								prevMonth = 12;
-								prevYear--;
-							}
-							const dateStr = `${prevYear}-${String(prevMonth).padStart(2, '0')}-${String(prevMonthDay).padStart(2, '0')}`;
-							week.push({
-								day: prevMonthDay,
-								currentMonth: false,
-								isToday: false,
-								hasEvent: this.hasEvent(dateStr),
-								date: dateStr
-							});
-						} else if (day > daysInMonth) {
-							// 下个月的日期
-							let nextMonth = month + 1;
-							let nextYear = year;
-							if (nextMonth > 12) {
-								nextMonth = 1;
-								nextYear++;
-							}
-							const dateStr = `${nextYear}-${String(nextMonth).padStart(2, '0')}-${String(nextMonthDay).padStart(2, '0')}`;
-							week.push({
-								day: nextMonthDay++,
-								currentMonth: false,
-								isToday: false,
-								hasEvent: this.hasEvent(dateStr),
-								date: dateStr
-							});
-						} else {
-							// 当月的日期
-							const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-							week.push({
-								day: day,
-								currentMonth: true,
-								isToday: year === currentYear && month === currentMonth && day === currentDay,
-								hasEvent: this.hasEvent(dateStr),
-								date: dateStr
-							});
-							day++;
-						}
+		isCurrentMonth() {
+			const today = new Date();
+			return this.year === today.getFullYear() && this.month === today.getMonth() + 1;
+		}
+	},
+	onLoad() {
+		const today = new Date();
+		this.year = today.getFullYear();
+		this.month = today.getMonth() + 1;
+		
+		uni.setNavigationBarTitle({
+			title: '历史'
+		});
+	},
+	mounted() {
+		// 监听弹窗关闭事件
+		uni.$on('closeTrainingPopup', this.closeTrainingPopup);
+	},
+	beforeDestroy() {
+		// 移除事件监听器
+		uni.$off('closeTrainingPopup', this.closeTrainingPopup);
+	},
+	methods: {
+		generateCalendar(year, month) {
+			const calendar = [];
+			// 缓存常用计算结果
+			const firstDay = new Date(year, month - 1, 1);
+			const firstDayWeekday = firstDay.getDay() || 7; // 将周日(0)转换为7
+			
+			// 获取当月总天数
+			const daysInMonth = new Date(year, month, 0).getDate();
+			
+			// 获取上个月总天数
+			const daysInPrevMonth = new Date(year, month - 1, 0).getDate();
+			
+			// 当前日期，用于标记今天
+			const today = new Date();
+			const currentYear = today.getFullYear();
+			const currentMonth = today.getMonth() + 1;
+			const currentDay = today.getDate();
+			
+			// 预先格式化年月，避免重复计算
+			const formattedYear = String(year);
+			const formattedMonth = String(month).padStart(2, '0');
+			let prevMonth = month - 1;
+			let prevYear = year;
+			if (prevMonth === 0) {
+				prevMonth = 12;
+				prevYear--;
+			}
+			const formattedPrevYear = String(prevYear);
+			const formattedPrevMonth = String(prevMonth).padStart(2, '0');
+			
+			let nextMonth = month + 1;
+			let nextYear = year;
+			if (nextMonth === 13) {
+				nextMonth = 1;
+				nextYear++;
+			}
+			const formattedNextYear = String(nextYear);
+			const formattedNextMonth = String(nextMonth).padStart(2, '0');
+			
+			let day = 1;
+			let nextMonthDay = 1;
+			
+			// 生成日历数据
+			for (let i = 0; i < 6; i++) {  // 6行
+				const week = [];
+				for (let j = 0; j < 7; j++) { // 7列
+					if (i === 0 && j < firstDayWeekday - 1) {
+						// 上个月的日期
+						const prevMonthDay = daysInPrevMonth - (firstDayWeekday - 2) + j;
+						const formattedDay = String(prevMonthDay).padStart(2, '0');
+						const dateStr = `${formattedPrevYear}-${formattedPrevMonth}-${formattedDay}`;
+						week.push({
+							day: prevMonthDay,
+							currentMonth: false,
+							isToday: false,
+							hasEvent: this.hasEvent(dateStr),
+							date: dateStr
+						});
+					} else if (day > daysInMonth) {
+						// 下个月的日期
+						const formattedDay = String(nextMonthDay).padStart(2, '0');
+						const dateStr = `${formattedNextYear}-${formattedNextMonth}-${formattedDay}`;
+						week.push({
+							day: nextMonthDay++,
+							currentMonth: false,
+							isToday: false,
+							hasEvent: this.hasEvent(dateStr),
+							date: dateStr
+						});
+					} else {
+						// 当月的日期
+						const formattedDay = String(day).padStart(2, '0');
+						const dateStr = `${formattedYear}-${formattedMonth}-${formattedDay}`;
+						week.push({
+							day: day,
+							currentMonth: true,
+							isToday: year === currentYear && month === currentMonth && day === currentDay,
+							hasEvent: this.hasEvent(dateStr),
+							date: dateStr
+						});
+						day++;
 					}
-					calendar.push(week);
-					if (day > daysInMonth && i >= 4) break; // 如果已经处理完所有日期且至少有5行
 				}
-				
-				return calendar;
-			},
-			hasEvent(dateStr) {
-				return this.events.some(event => event.date === dateStr);
-			},
-			prevMonth() {
+				calendar.push(week);
+				if (day > daysInMonth && i >= 4) break; // 如果已经处理完所有日期且至少有5行
+			}
+			
+			return calendar;
+		},
+		hasEvent(dateStr) {
+			// 检查缓存中是否已有结果
+			if (this.eventsCache[dateStr] !== undefined) {
+				return this.eventsCache[dateStr];
+			}
+			// 计算结果并缓存
+			const result = this.events.some(event => event.date === dateStr);
+			this.eventsCache[dateStr] = result;
+			return result;
+		},
+		prevMonth() {
+			// 使用requestAnimationFrame确保在下一帧更新，避免卡顿
+			setTimeout(() => {
 				if (this.month === 1) {
 					this.year--;
 					this.month = 12;
 				} else {
 					this.month--;
 				}
-			},
-			nextMonth() {
+				// 清除事件缓存以确保切换月份后重新计算
+				this.eventsCache = {};
+			}, 10);
+		},
+		nextMonth() {
+			// 使用requestAnimationFrame确保在下一帧更新，避免卡顿
+			setTimeout(() => {
 				if (this.month === 12) {
 					this.year++;
 					this.month = 1;
 				} else {
 					this.month++;
 				}
-			},
-			goToCurrentMonth() {
-				const today = new Date();
-				this.year = today.getFullYear();
-				this.month = today.getMonth() + 1;
-			},
-			selectDate(day) {
-				this.selectedDate = day.date;
-				uni.showToast({
-					title: `选择日期: ${day.date}`,
-					icon: 'none'
-				});
-				
-				// 实际应用中可以展示该日期的详细记录
-				// uni.navigateTo({
-				//   url: `/pages/daily-record/daily-record?date=${day.date}`
-				// });
-			},
-			showReport() {
-				uni.showToast({
-					title: '查看月/年报表',
-					icon: 'none'
-				});
-			},
-			showSettings() {
-				uni.showToast({
-					title: '日历设置',
-					icon: 'none'
-				});
-			},
-			handleSwiperChange(e) {
-				if (this.swiperChanging) return;
-				
-				this.swiperChanging = true;
-				const current = e.detail.current;
-				
-				if (current === 0) {
-					// 向左滑动，显示上个月
-					this.prevMonth();
-				} else if (current === 2) {
-					// 向右滑动，显示下个月
-					this.nextMonth();
-				}
-				
-				// 重置swiper的位置到中间
-				setTimeout(() => {
-					this.swiperChanging = false;
-				}, 500);
+				// 清除事件缓存以确保切换月份后重新计算
+				this.eventsCache = {};
+			}, 10);
+		},
+		goToCurrentMonth() {
+			const today = new Date();
+			this.year = today.getFullYear();
+			this.month = today.getMonth() + 1;
+			// 清除事件缓存以确保切换月份后重新计算
+			this.eventsCache = {};
+		},
+		selectDate(day) {
+			this.selectedDate = day.date;
+			// 显示训练弹窗
+			this.showTrainingPopup = true;
+			// 发送日期选择事件
+			uni.$emit('calendarDateSelected', day.date);
+		},
+		showReport() {
+			uni.showToast({
+				title: '查看月/年报表',
+				icon: 'none'
+			});
+		},
+		showSettings() {
+			uni.showToast({
+				title: '日历设置',
+				icon: 'none'
+			});
+		},
+		
+		// 保留获取训练数据的方法，以便日历显示
+		getTrainingPlansForDate(dateStr) {
+			return this.trainingPlans.filter(plan => plan.date === dateStr);
+		},
+		
+		getCompletedCount(dateStr) {
+			return this.getTrainingPlansForDate(dateStr).filter(plan => plan.completed).length;
+		},
+		
+		getCompletionPercentage(dateStr) {
+			const totalPlans = this.getTrainingPlansForDate(dateStr).length;
+			if (totalPlans === 0) return 0;
+			const completedPlans = this.getTrainingPlansForDate(dateStr).filter(plan => plan.completed).length;
+			return (completedPlans / totalPlans) * 100;
+		},
+		
+		getTrainingTypes(dateStr) {
+			const plans = this.getTrainingPlansForDate(dateStr);
+			const types = [...new Set(plans.map(plan => plan.type))];
+			return types;
+		},
+		
+		getCompletedCapacity(dateStr) {
+			const completedPlans = this.getTrainingPlansForDate(dateStr)
+								   .filter(plan => plan.completed);
+			if (completedPlans.length === 0) return 0;
+			
+			// 计算所有已完成计划的总重量
+			return completedPlans.reduce((sum, plan) => sum + (plan.capacity || 0), 0);
+		},
+		
+		isRestDay(dateStr) {
+			// 检查该日期是否有休息日类型的训练计划
+			return this.getTrainingPlansForDate(dateStr).some(plan => plan.isRest);
+		},
+		
+		getPrimaryPlanName(dateStr) {
+			const plans = this.getTrainingPlansForDate(dateStr);
+			if (plans.length > 0) {
+				return plans[0].name;
 			}
+			return null;
+		},
+		
+		getSpecialMark(dateStr) {
+			// 这个方法可以保留用于显示特殊标记
+			return null;
+		},
+
+		// 新增方法：获取某一天的所有训练计划（限制最多返回4个）
+		getTrainingPlansForDay(dateStr) {
+			const allPlans = this.trainingPlans.filter(plan => plan.date === dateStr && !plan.isRest);
+			// 返回不超过4个的计划
+			return allPlans.slice(0, 4);
+		},
+		
+		// 计算超出显示限制的计划数
+		getExcessPlanCount(dateStr) {
+			const totalCount = this.trainingPlans.filter(plan => plan.date === dateStr && !plan.isRest).length;
+			return totalCount > 4 ? totalCount - 4 : 0;
+		},
+
+		// 关闭训练弹窗
+		closeTrainingPopup() {
+			this.showTrainingPopup = false;
 		}
 	}
+}
 </script>
 
 <style>
@@ -352,8 +419,8 @@
 		width: 130px;
 		display: flex;
 		flex-direction: row;
-		align-item: center;
-		justify-content:start;
+		align-items: center;
+		justify-content:flex-start;
 		 
 	}
 	
@@ -388,6 +455,7 @@
 		 
 	}
 	
+	/* 减少不必要的阴影和渐变，提高Android性能 */
 	.back-month-btn {
 		background-color: #e6f2ff;
 		padding: 10rpx 20rpx;
@@ -426,7 +494,8 @@
 		margin-right: 20rpx;
 	}
 	
-	.report-icon {
+	/* 使用静态宽度和高度 */
+	.report-icon, .settings-icon {
 		width: 40rpx;
 		height: 40rpx;
 		margin-bottom: 5rpx;
@@ -442,22 +511,19 @@
 		align-items: center;
 	}
 	
-	.settings-icon {
-		width: 40rpx;
-		height: 40rpx;
-		margin-bottom: 5rpx;
-	}
-	
 	.settings-text {
 		font-size: 24rpx;
 		color: #666;
 	}
 	
+	/* 调整星期行样式 */
 	.weekday-row {
 		flex-direction: row;
 		border-bottom-width: 1rpx;
 		border-bottom-color: #e0e0e0;
 		margin-bottom: 10rpx;
+		padding-bottom: 10rpx; /* 增加底部内边距 */
+		font-size: 36rpx; /* 加大字体 */
 	}
 	
 	.weekday-cell {
@@ -467,12 +533,15 @@
 	}
 	
 	.weekday-text {
-		font-size: 28rpx;
-		color: #333;
+		font-size: 36rpx; /* 加大字体 */
+		color: #000; /* 加深颜色 */
+		font-weight: bold; /* 加粗 */
 	}
 	
 	.calendar-container {
 		flex: 1;
+		height: 1080rpx; /* 设置固定高度 */
+		overflow: hidden;
 	}
 	
 	.calendar-grid {
@@ -480,56 +549,142 @@
 	}
 	
 	.calendar-row {
-		height: 120rpx;
+		height: 180rpx; /* 与单元格高度一致 */
 		flex-direction: row;
 	}
 	
+	/* 日历单元格样式 */
 	.calendar-cell {
 		flex: 1;
-		justify-content: center;
+		justify-content: flex-start;  /* 改为从上到下排列 */
 		align-items: center;
-		padding: 10rpx 0;
+		height: 180rpx; /* 调整高度 */
+		position: relative;
+		overflow: hidden;
+		padding: 0;
 	}
 	
 	.calendar-cell.inactive {
-		opacity: 0.4;
+		opacity: 0.5;
 	}
 	
+	/* 移除今日背景色，改为不影响单元格 */
 	.calendar-cell.today {
-		background-color: rgba(10, 132, 255, 0.1);
-		border-radius: 8rpx;
+		/* 移除背景色 */
 	}
 	
-	.calendar-cell.has_event .day-number {
-		font-weight: bold;
-		color: #0A84FF;
+	/* 移除选中日期的背景色 */
+	.calendar-cell.selected {
+		/* 移除背景色 */
 	}
 	
 	.day-container {
+		width: 100%;
+		height: 100%;
 		flex-direction: column;
 		align-items: center;
 	}
 	
+	/* 常规日期数字样式 */
 	.day-number {
 		font-size: 32rpx;
 		color: #333;
-		margin-bottom: 8rpx;
+		margin: 10rpx 0;
+		/* 移除不支持的属性，使用其他方式实现居中效果 */
+		height: 60rpx;  /* 固定高度确保圆圈效果一致 */
+		width: 60rpx;   /* 固定宽度使其成为正圆形 */
+		line-height: 60rpx;  /* 垂直居中文字 */
+		text-align: center;  /* 水平居中文字 */
 	}
 	
+	/* 非本月日期文字颜色 */
 	.inactive-text {
 		color: #999;
 	}
 	
+	/* 今日日期样式 - 添加蓝色背景圆圈 */
 	.today-text {
-		color: #0A84FF;
+		color: #FFFFFF; /* 白色文字 */
+		font-weight: bold;
+		background-color: #0A84FF;  /* 蓝色背景，与应用中已有的蓝色保持一致 */
+		border-width: 0;  /* 移除边框 */
+		border-radius: 30rpx;  /* 保持圆形 */
+	}
+	
+	/* 训练计划名称标记 */
+	.plan-name-badge {
+		background-color: #000000; /* 黑色背景 */
+		width: 100%;
+		padding: 2rpx 0; /* 进一步减小内边距 */
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 1rpx; /* 减小底部间距 */
+	}
+	
+	.plan-name-text {
+		color: #FFFFFF;
+		font-size: 16rpx; /* 进一步减小文字尺寸 */
+		line-height: 18rpx; /* 减小行高使文本更紧凑 */
+	}
+	
+	/* 调整容量标记的边距 */
+	.capacity-badge {
+		background-color: #2196F3; /* 蓝色背景 */
+		width: 100%;
+		padding: 2rpx 0; /* 减小内边距 */
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 1rpx; /* 减小间距 */
+	}
+	
+	.capacity-text {
+		color: #FFFFFF;
+		font-size: 18rpx; /* 缩小容量文字 */
 		font-weight: bold;
 	}
 	
-	.event-indicator {
-		width: 8rpx;
-		height: 8rpx;
-		border-radius: 4rpx;
-		background-color: #0A84FF;
+	/* 休息日标记也保持一致的样式 */
+	.rest-day-badge {
+		background-color: #4CAF50; /* 绿色背景 */
+		width: 100%;
+		padding: 2rpx 0; /* 减小内边距 */
+		align-items: center;
+		justify-content: center;
+	}
+	
+	.rest-day-text {
+		color: #FFFFFF;
+		font-size: 16rpx; /* 减小文字尺寸 */
+	}
+	
+	/* 特殊标记 */
+	.special-mark-badge {
+		background-color: #4CAF50; /* 绿色背景 */
+		width: 100%;
+		padding: 5rpx 0;
+		align-items: center;
+		justify-content: center;
+		margin-top: 5rpx;
+	}
+	
+	.special-mark-text {
+		color: #FFFFFF;
+		font-size: 24rpx;
+	}
+
+	/* 超出计划数量的标记 */
+	.more-plans-badge {
+		background-color: #FF9800; /* 橙色背景 */
+		width: 100%;
+		padding: 2rpx 0; /* 减小内边距 */
+		align-items: center;
+		justify-content: center;
+		margin-top: 1rpx; /* 减小上边距 */
+	}
+
+	.more-plans-text {
+		color: #FFFFFF;
+		font-size: 16rpx; /* 减小文字尺寸 */
 	}
 	
 	.footer {
