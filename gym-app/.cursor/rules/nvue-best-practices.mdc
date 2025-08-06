@@ -1,0 +1,36 @@
+---
+description: NVue开发最佳实践和性能优化指南
+alwaysApply: true
+---
+
+# NVue最佳实践
+
+## 性能优化
+
+1. Android平台上避免过多圆角边框，影响性能
+2. 使用`render-whole="true"`属性提升渲染性能
+3. 锁定屏幕方向，避免横竖屏切换引发的问题
+4. iOS下拉刷新需设置`alwaysScrollableVertical="true"`
+5. 首页使用NVue + fast模式可使启动速度控制在1秒左右
+
+## 开发注意事项
+
+1. 控制显隐建议使用`v-if`而非`v-show`
+2. 全局变量需使用`globalData`或vuex
+3. 不支持在style中引入字体文件
+4. 避免使用大量Canvas动画
+5. 长列表推荐使用`<list>`或`<recycle-list>`组件
+6. 复杂交互场景可使用NVue的`refresh`组件实现自定义下拉刷新
+
+## manifest.json配置参考
+
+```json
+{
+  "app-plus": {
+    "nvueCompiler": "uni-app", // 推荐的编译模式
+    "nvueStyleCompiler": "uni-app", // 推荐的样式编译模式
+    "renderer": "native" // 纯原生渲染模式，减少包体积和内存占用
+  }
+}
+```
+---

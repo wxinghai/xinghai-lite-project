@@ -1,0 +1,63 @@
+---
+description: NVue适用场景和特性指南
+alwaysApply: true
+globs: *.nvue
+---
+# NVue使用场景与特性
+
+## 推荐使用NVue的场景
+
+### 1. 高性能滚动列表
+
+- 长列表 (使用`<list>`或`<recycle-list>`组件)
+- 瀑布流 (使用`<waterfall>`组件)
+- 左右滑动列表
+
+### 2. 复杂交互
+
+- 自定义下拉刷新 (使用`<refresh>`组件)
+- 复杂吸顶效果
+- 区域滚动+左右滑动+吸顶的复合效果
+
+### 3. 原生组件层级问题
+
+- 覆盖map、video、live-pusher等原生组件
+- 使用subNVue解决WebView覆盖原生组件问题
+
+### 4. 启动速度优化
+
+- 首页使用NVue + fast模式可提高启动速度
+
+## 不推荐使用NVue的场景
+
+1. Canvas动画 (推荐使用Vue页面的renderjs)
+2. 动态横竖屏适配
+3. 需要复杂CSS的场景
+
+## 特殊功能
+
+### SubNVue
+
+SubNVue是一种非全屏的NVue页面，可覆盖在WebView上，解决原生组件层级问题。
+
+```html
+<!-- 在Vue页面中使用subNVue -->
+<template>
+  <view>
+    <map></map>
+    <!-- 其他内容 -->
+  </view>
+</template>
+
+<script>
+export default {
+  data() {
+    return {}
+  },
+  onReady() {
+    // 打开subNVue
+    uni.getSubNVueById('popup').show()
+  }
+}
+</script>
+```

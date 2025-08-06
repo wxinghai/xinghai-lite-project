@@ -1,0 +1,29 @@
+---
+alwaysApply: true
+---
+
+# 健身应用项目概览
+...内容...
+# 健身应用项目概览
+
+这是一个基于uni-app框架的NVue健身应用，使用原生渲染技术实现高性能用户体验。
+
+## 项目结构
+
+- [App.vue](mdc:App.vue) - 应用主组件
+- [main.js](mdc:main.js) - 应用入口文件
+- [pages.json](mdc:pages.json) - 页面路由配置
+- [manifest.json](mdc:manifest.json) - 应用配置文件
+
+### 主要页面
+
+- 训练页面: [pages/training/training.nvue](mdc:pages/training/training.nvue)
+- 动作页面: [pages/actions/actions.nvue](mdc:pages/actions/actions.nvue)
+- 饮食页面: [pages/diet/diet.nvue](mdc:pages/diet/diet.nvue)
+- 日历页面: [pages/calendar/calendar.nvue](mdc:pages/calendar/calendar.nvue)
+- 个人资料页面: [pages/profile/profile.nvue](mdc:pages/profile/profile.nvue)
+
+## NVue基本概念
+
+NVue是uni-app框架中用于原生渲染的技术方案，具有高性能、跨平台的特点，特别适合复杂交互和滚动列表场景。
+---

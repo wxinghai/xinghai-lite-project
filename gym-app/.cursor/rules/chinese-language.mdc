@@ -1,0 +1,38 @@
+---
+alwaysApply: true
+---
+ 
+# 语言偏好
+ 
+所有代码注释和交流使用中文。UI文本和提示信息也应使用简体中文编写。
+
+## 命名规范
+
+- 变量名、函数名、类名等代码标识符使用英文（符合编程习惯）
+- 注释必须使用中文
+- 字符串内容（如提示信息、按钮文本等）使用中文
+
+## 示例
+
+```js
+// 正确示例
+function calculateBMI(height, weight) {
+  // 计算身体质量指数
+  const bmi = weight / (height * height);
+  return {
+    value: bmi,
+    message: bmi < 18.5 ? '体重过轻' : bmi < 24 ? '体重正常' : '体重过重'
+  };
+}
+
+// 错误示例
+function calculateBMI(height, weight) {
+  // Calculate Body Mass Index
+  const bmi = weight / (height * height);
+  return {
+    value: bmi,
+    message: bmi < 18.5 ? 'Underweight' : bmi < 24 ? 'Normal' : 'Overweight'
+  };
+}
+```
+---

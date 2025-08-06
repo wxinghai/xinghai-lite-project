@@ -1,0 +1,58 @@
+# 组件开发规范
+
+## 组件命名
+
+1. 组件名使用多个单词组成的大驼峰命名法（PascalCase）
+   - 例如：`TrainingCard.vue`, `MuscleSelector.nvue`
+2. 基础组件以特定前缀命名
+   - 通用UI组件使用`Base`前缀，如`BaseButton.vue`
+   - 布局组件使用`Layout`前缀，如`LayoutHeader.nvue`
+3. 页面组件与路由对应，使用页面功能命名
+
+## 组件结构
+
+1. 组件属性顺序
+   ```js
+   export default {
+     name: '',      // 组件名称
+     components: {}, // 子组件
+     props: {},     // 属性
+     data() {},     // 数据
+     computed: {},  // 计算属性
+     watch: {},     // 监听器
+     created() {},  // 生命周期钩子
+     mounted() {},  // 生命周期钩子
+     methods: {}    // 方法
+   }
+   ```
+
+2. Props定义
+   - 必须使用对象形式，指定类型和默认值
+   - 使用驼峰命名（camelCase）
+
+   ```js
+   props: {
+     trainingType: {
+       type: String,
+       default: '力量训练',
+       required: true
+     }
+   }
+   ```
+
+## 组件通信
+
+1. 父子组件通信
+   - 父传子：使用props
+   - 子传父：使用事件（$emit）
+
+2. 跨组件通信
+   - 简单场景：使用eventBus
+   - 复杂场景：使用Vuex管理状态
+
+## 性能优化
+
+1. 避免在模板中使用复杂表达式
+2. 合理使用计算属性缓存结果
+3. 大列表使用NVue的原生组件
+4. 懒加载非关键组件

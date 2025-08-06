@@ -1,0 +1,38 @@
+---
+globs: *.nvue
+---
+# NVue布局和样式规则
+
+## 布局规则
+
+1. 必须使用Flex布局，不支持其他布局方式
+2. 默认布局方向为column（从上到下）
+3. 不支持百分比布局和媒体查询
+
+## 样式规则
+
+1. 文字必须放在`<text>`组件中
+2. CSS限制：
+   - 仅支持class选择器（在uni-app模式下支持更多选择器）
+   - 不支持背景图
+   - 字体大小/颜色只能在text组件设置
+3. 页面结构示例：
+
+```html
+<template>
+  <view class="container">
+    <text class="title">标题文本</text>
+    <!-- 其他内容 -->
+  </view>
+</template>
+
+<style>
+  .container {
+    flex-direction: column;
+    align-items: center;
+  }
+  .title {
+    font-size: 36rpx;
+    color: #333333;
+  }
+</style>
