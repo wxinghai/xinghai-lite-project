@@ -1,0 +1,818 @@
+<template>
+  <view class="popup-container" render-whole="true">
+    <!-- 顶部导航栏 - 简化版 -->
+    <view class="nav-bar">
+      <view class="close-btn" @click="close">
+        <text class="close-icon">✕</text>
+      </view>
+      <view class="pagination-dots" v-if="trainings.length > 1">
+        <view v-for="(_, idx) in trainings" 
+              :key="idx" 
+              :class="['dot', { active: idx === currentIndex }]">
+        </view>
+      </view>
+      <view class="placeholder-right"></view>
+    </view>
+    
+    <!-- 内容区域 -->
+    <view class="content-container">
+      <!-- 无训练状态 -->
+      <view v-if="!hasTrainings" class="empty-state">
+        <image class="empty-image" src="/static/empty-plan.png" mode="aspectFit"></image>
+        <text class="empty-text">今天还没有安排哦，快去安排吧~</text>
+        <view class="action-buttons">
+          <view class="action-btn strength-btn" @click="createStrengthTraining">
+            <text class="btn-text">启动力量训练</text>
+          </view>
+          <view class="action-btn rest-btn" @click="addRestDay">
+            <text class="btn-text">添加休息日</text>
+          </view>
+        </view>
+      </view>
+      
+      <!-- 有训练状态 - 优化版 -->
+      <view v-else class="training-container">
+        <swiper 
+          class="training-swiper"
+          :current="currentIndex"
+          @change="handleSwiperChange"
+          :disable-touch="false">
+          
+          <!-- 遍历当天所有训练 -->
+          <swiper-item v-for="(training, index) in trainings" :key="training.id">
+            <view class="training-content">
+              <!-- 训练标题和数据 - 优化布局 -->
+              <view class="training-header">
+                <text class="training-title">{{ training.name }}</text>
+                
+                <view class="training-stats">
+                  <view class="stat-item">
+                    <text class="stat-value">{{ formatCapacity(training.capacity) }}kg</text>
+                    <text class="stat-label">容量</text>
+                  </view>
+                  <view class="stat-item">
+                    <text class="stat-value">{{ training.duration || "51分钟" }}</text>
+                    <text class="stat-label">{{ training.timeRange || "19:25~20:16" }}</text>
+                  </view>
+                  <view class="stat-item">
+                    <text class="stat-value">{{ formatMonthDay(date) }}</text>
+                    <text class="stat-label">{{ formatYear(date) }}</text>
+                  </view>
+                </view>
+              </view>
+              
+              <!-- 训练动作列表 - 使用list组件优化性能 -->
+              <list class="exercises-list" show-scrollbar="false">
+                <cell v-for="(exercise, idx) in getExercises(training)" :key="idx">
+                  <view class="exercise-item">
+                    <!-- 肌肉图标 -->
+                    <image class="exercise-image" :src="getExerciseImage(exercise)" lazy-load></image>
+                    
+                    <view class="exercise-content">
+                      <!-- 动作标题和容量 -->
+                      <view class="exercise-header">
+                        <text class="exercise-name">{{ exercise.name }}</text>
+                        <text class="exercise-capacity">{{ calculateExerciseCapacity(exercise) }}容量</text>
+                      </view>
+                      
+                      <!-- 训练组 -->
+                      <view v-for="(set, setIdx) in exercise.sets" :key="setIdx" class="exercise-set">
+                        <text class="set-number">{{ setIdx + 1 }}</text>
+                        <text class="set-weight">{{ formatWeight(set) }}</text>
+                        <text class="set-check">✓</text>
+                        <text class="set-rest" v-if="set.restTime">{{ formatRestTime(set.restTime) }}</text>
+                      </view>
+                    </view>
+                  </view>
+                </cell>
+              </list>
+            </view>
+          </swiper-item>
+        </swiper>
+      </view>
+    </view>
+    
+    <!-- 底部操作按钮 - 保持优化后的样式 -->
+    <view class="bottom-actions" v-if="hasTrainings">
+      <view class="action-btn primary-btn" @click="editTraining">
+        <text class="primary-text">编辑数据</text>
+      </view>
+      <view class="action-btn secondary-btn" @click="copyToToday">
+        <text class="secondary-text">复制到今天</text>
+      </view>
+      <view class="action-btn secondary-btn" @click="copyToOther">
+        <text class="secondary-text">复制到</text>
+      </view>
+      <view class="action-btn secondary-btn" @click="showMoreActions">
+        <text class="secondary-text">更多</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script>
+export default {
+  props: {
+    date: {
+      type: String,
+      default: ''
+    }
+  },
+  data() {
+    return {
+      trainings: [],
+      currentIndex: 0,
+      showMoreMenu: false,
+      loadedImages: {}, // 图片缓存
+      exerciseCache: {} // 训练动作缓存
+    }
+  },
+  computed: {
+    hasTrainings() {
+      return this.trainings && this.trainings.length > 0;
+    },
+    formattedDate() {
+      if (!this.date) return '';
+      return this.formatDate(this.date);
+    },
+    currentTraining() {
+      if (!this.hasTrainings) return null;
+      return this.trainings[this.currentIndex] || null;
+    }
+  },
+  // 生命周期优化
+  created() {
+    // 轻量级操作放在created中
+    this.initializeData();
+    
+    // 添加全局点击事件监听
+    uni.$on('touchstart', this.handleOutsideClick);
+  },
+  mounted() {
+    // 隐藏底部导航栏
+    uni.hideTabBar();
+    
+    // 使用setTimeout替代requestAnimationFrame
+    setTimeout(() => {
+      this.loadTrainings();
+    }, 10);
+    
+    // 预加载常用图标
+    this.preloadImages([
+      '/static/empty-plan.png'
+    ]);
+  },
+  beforeDestroy() {
+    // 恢复底部导航栏
+    uni.showTabBar();
+    
+    // 移除事件监听器
+    uni.$off('touchstart', this.handleOutsideClick);
+  },
+  methods: {
+    // 性能优化 - 数据初始化
+    initializeData() {
+      // 只初始化必要数据
+      this.currentIndex = 0;
+      this.showMoreMenu = false;
+    },
+    
+    // 性能优化 - 训练数据懒加载
+    loadTrainings() {
+      // 模拟异步数据加载
+      setTimeout(() => {
+        // 实际应用中这里应该是数据库查询或API调用
+        this.trainings = this.getTrainingsForDate(this.date);
+      }, 10); // 极短延迟，不影响用户体验
+    },
+    
+    // 获取指定日期的训练
+    getTrainingsForDate(date) {
+      // 这里是模拟数据，实际应用中应该从store或API获取
+      if (!date) return [];
+      
+      // 示例训练数据
+      return [
+        {
+          id: 1,
+          date: date,
+          name: "72.5%腿训",
+          capacity: 7650,
+          duration: "51分钟",
+          timeRange: "19:25~20:16",
+          isRest: false,
+          completed: true,
+          exercises: [
+            {
+              id: 101,
+              name: "深蹲",
+              sets: [
+                { weight: 165, reps: 2, restTime: "3m10s" },
+                { weight: 120, reps: 10, restTime: "5m0s" },
+                { weight: 120, reps: 10, restTime: "5m0s" },
+                { weight: 120, reps: 5, restTime: "4m0s" },
+                { weight: 120, reps: 8, restTime: "4m0s" },
+                { weight: 120, reps: 8 }
+              ],
+              image: "/static/actions/squat.png"
+            },
+            {
+              id: 102,
+              name: "杠铃罗马尼亚硬拉",
+              sets: [
+                { weight: 80, reps: 10, restTime: "1m0s" },
+                { weight: 80, reps: 10, restTime: "1m0s" },
+                { weight: 80, reps: 10 }
+              ],
+              image: "/static/actions/romanian-deadlift.png"
+            }
+          ]
+        }
+      ];
+    },
+    
+    // 获取训练动作
+    getExercises(training) {
+      if (!training) return [];
+      
+      // 如果是休息日，返回空数组
+      if (training.isRest) return [];
+      
+      // 如果训练有exercises属性，直接返回
+      if (training.exercises && Array.isArray(training.exercises)) {
+        return training.exercises;
+      }
+      
+      // 缓存机制
+      const cacheKey = `training_${training.id}`;
+      if (!this.exerciseCache[cacheKey]) {
+        // 实际应用中，这里应该从API获取训练动作
+        this.exerciseCache[cacheKey] = [];
+      }
+      
+      return this.exerciseCache[cacheKey];
+    },
+    
+    // 获取训练动作图片
+    getExerciseImage(exercise) {
+      if (!exercise || !exercise.image) {
+        // 返回默认图片
+        return "/static/actions/default.png";
+      }
+      return exercise.image;
+    },
+    
+    // 计算单个动作的总容量
+    calculateExerciseCapacity(exercise) {
+      if (!exercise || !exercise.sets || !Array.isArray(exercise.sets)) return "0";
+      
+      let capacity = 0;
+      exercise.sets.forEach(set => {
+        capacity += (set.weight * set.reps);
+      });
+      
+      return capacity.toString();
+    },
+    
+    // 格式化休息时间
+    formatRestTime(time) {
+      if (!time) return "";
+      return time;
+    },
+    
+    // 格式化重量和次数
+    formatWeight(set) {
+      if (!set) return "";
+      
+      // 如果有左右属性，表示左右两侧分别的重量
+      if (set.leftRight) {
+        return `${set.weight} kg × ${set.reps}`;
+      }
+      
+      return `${set.weight} kg × ${set.reps}`;
+    },
+    
+    // 格式化容量显示
+    formatCapacity(capacity) {
+      if (capacity === undefined || capacity === null) return "0";
+      return capacity.toString();
+    },
+    
+    // 格式化日期显示 (YYYY-MM-DD)
+    formatDate(dateString) {
+      if (!dateString) return "";
+      
+      try {
+        const date = new Date(dateString);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      } catch (e) {
+        return dateString;
+      }
+    },
+    
+    // 简化的日期格式 (MM月DD日)
+    formatMonthDay(dateString) {
+      if (!dateString) return "";
+      
+      try {
+        const date = new Date(dateString);
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
+        return `${month}月${day}日`;
+      } catch (e) {
+        return "";
+      }
+    },
+    
+    // 仅年份
+    formatYear(dateString) {
+      if (!dateString) return "";
+      
+      try {
+        const date = new Date(dateString);
+        return date.getFullYear().toString();
+      } catch (e) {
+        return "";
+      }
+    },
+    
+    // 性能优化 - 图片预加载
+    preloadImages(urls) {
+      urls.forEach(url => {
+        if (!this.loadedImages[url]) {
+          // 使用uni.getImageInfo预加载图片
+          uni.getImageInfo({
+            src: url,
+            success: () => {
+              this.loadedImages[url] = true;
+            }
+          });
+        }
+      });
+    },
+    
+    // 处理轮播切换
+    handleSwiperChange(e) {
+      this.currentIndex = e.detail.current;
+    },
+    
+    // 处理点击外部关闭菜单
+    handleOutsideClick() {
+      // 在NVue环境中，使用全局事件来处理点击事件
+      if (this.showMoreMenu) {
+        setTimeout(() => {
+          this.showMoreMenu = false;
+        }, 10);
+      }
+    },
+    
+    // 创建力量训练
+    createStrengthTraining() {
+      this.showMoreMenu = false;
+      uni.navigateTo({
+        url: `/pages/training/edit-training?date=${this.date}&type=strength&isNew=true`
+      });
+    },
+    
+    // 添加休息日
+    addRestDay() {
+      this.showMoreMenu = false;
+      // 创建休息日记录逻辑
+      const restDay = {
+        id: Date.now(),
+        date: this.date,
+        name: "休息日",
+        capacity: 0,
+        isRest: true,
+        completed: true
+      };
+      
+      // 添加到训练列表
+      this.trainings.push(restDay);
+      this.currentIndex = this.trainings.length - 1; // 切换到新添加的休息日
+      
+      // 实际应用中，应该保存到数据库或提交到服务器
+      uni.showToast({
+        title: '已添加休息日',
+        icon: 'success'
+      });
+    },
+    
+    // 生成分享图
+    generateShareImage() {
+      this.showMoreMenu = false;
+      
+      // 显示加载提示
+      uni.showLoading({
+        title: '生成分享图...'
+      });
+      
+      // 这里应该是实际的分享图生成逻辑
+      setTimeout(() => {
+        uni.hideLoading();
+        uni.showToast({
+          title: '分享图已生成',
+          icon: 'success'
+        });
+      }, 1500);
+    },
+    
+    // 编辑当前训练
+    editTraining() {
+      if (!this.currentTraining) return;
+      
+      uni.navigateTo({
+        url: `/pages/training/edit-training?id=${this.currentTraining.id}&date=${this.date}`
+      });
+    },
+    
+    // 复制到今天
+    copyToToday() {
+      if (!this.currentTraining) return;
+      
+      // 实际应用中，应该复制训练到今天的日期
+      uni.showToast({
+        title: '已复制到今天',
+        icon: 'success'
+      });
+    },
+    
+    // 复制到其他日期
+    copyToOther() {
+      if (!this.currentTraining) return;
+      
+      // 这里应该弹出日期选择器
+      uni.showToast({
+        title: '请选择目标日期',
+        icon: 'none'
+      });
+    },
+    
+    // 显示更多操作
+    showMoreActions() {
+      // 这里应该显示更多操作菜单或弹窗
+      uni.showActionSheet({
+        itemList: ['删除', '分享', '复制为模板'],
+        success: (res) => {
+          switch(res.tapIndex) {
+            case 0: // 删除
+              this.deleteTraining();
+              break;
+            case 1: // 分享
+              this.shareTraining();
+              break;
+            case 2: // 复制为模板
+              this.saveAsTemplate();
+              break;
+          }
+        }
+      });
+    },
+    
+    // 删除训练
+    deleteTraining() {
+      if (!this.currentTraining) return;
+      
+      uni.showModal({
+        title: '确认删除',
+        content: '确定要删除这个训练计划吗？',
+        success: (res) => {
+          if (res.confirm) {
+            // 实际应用中，应该从数据库删除
+            this.trainings.splice(this.currentIndex, 1);
+            
+            if (this.trainings.length === 0) {
+              // 如果删除后没有训练了，显示空状态
+              this.currentIndex = 0;
+            } else if (this.currentIndex >= this.trainings.length) {
+              // 如果当前索引超出范围，调整为最后一个
+              this.currentIndex = this.trainings.length - 1;
+            }
+            
+            uni.showToast({
+              title: '已删除',
+              icon: 'success'
+            });
+          }
+        }
+      });
+    },
+    
+    // 分享训练
+    shareTraining() {
+      // 分享逻辑
+      uni.showToast({
+        title: '分享功能开发中',
+        icon: 'none'
+      });
+    },
+    
+    // 保存为模板
+    saveAsTemplate() {
+      // 保存为模板逻辑
+      uni.showToast({
+        title: '已保存为模板',
+        icon: 'success'
+      });
+    },
+    
+    // 关闭弹窗
+    close() {
+      // 恢复底部导航栏
+      uni.showTabBar();
+      // 发送关闭事件
+      uni.$emit('closeTrainingPopup');
+    }
+  }
+}
+</script>
+
+<style>
+/* 全屏容器 */
+.popup-container {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ffffff;
+  flex-direction: column;
+}
+
+/* 导航栏 - 优化版 */
+.nav-bar {
+  height: 90rpx;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 30rpx;
+ // border-bottom-width: 1rpx;
+  //border-bottom-color: #f0f0f0;
+}
+
+.close-btn {
+  width: 60rpx;
+  height: 60rpx;
+  justify-content: center;
+  align-items: center;
+}
+
+.close-icon {
+  font-size: 40rpx;
+  color: #333333;
+}
+
+/* 分页指示器移至顶部 */
+.pagination-dots {
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+
+.dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 8rpx;
+  background-color: #cccccc;
+  margin: 0 8rpx;
+}
+
+.dot.active {
+  background-color: #0078FF;
+  width: 24rpx;
+}
+
+.placeholder-right {
+  width: 60rpx;
+  height: 60rpx;
+}
+
+/* 内容区域 */
+.content-container {
+  flex: 1;
+  width: 750rpx;
+}
+
+/* 空状态 */
+.empty-state {
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+  padding: 60rpx;
+}
+
+.empty-image {
+  width: 300rpx;
+  height: 300rpx;
+  margin-bottom: 40rpx;
+}
+
+.empty-text {
+  font-size: 32rpx;
+  color: #999999;
+  margin-bottom: 60rpx;
+  text-align: center;
+}
+
+.action-buttons {
+  flex-direction: column;
+  width: 100%;
+}
+
+.action-btn {
+  height: 90rpx;
+  border-radius: 45rpx;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 30rpx;
+}
+
+.strength-btn {
+  background-color: #0078FF;
+}
+
+.rest-btn {
+  background-color: #4CAF50;
+}
+
+.btn-text {
+  font-size: 32rpx;
+  color: #ffffff;
+}
+
+/* 训练内容 - 优化布局 */
+.training-container {
+  flex: 1;
+}
+
+.training-swiper {
+  flex: 1;
+  width: 750rpx;
+}
+
+.training-content {
+  flex: 1;
+  padding: 30rpx;
+}
+
+/* 训练标题和数据 - 改进布局 */
+.training-header {
+  margin-bottom: 40rpx;
+}
+
+.training-title {
+  font-size: 50rpx;
+  font-weight: bold;
+  color: #333333;
+  margin-bottom: 25rpx;
+}
+
+.training-stats {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stat-item {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.stat-value {
+  font-size: 34rpx;
+  font-weight: bold;
+  color: #333333;
+}
+
+.stat-label {
+  font-size: 24rpx;
+  color: #999999;
+  margin-top: 4rpx;
+}
+
+/* 训练动作列表 - 优化显示 */
+.exercises-list {
+  flex: 1;
+}
+
+.exercise-item {
+  flex-direction: row;
+  padding: 30rpx 0;
+  border-bottom-width: 1rpx;
+  border-bottom-color: #f0f0f0;
+}
+
+.exercise-image {
+  width: 100rpx;
+  height: 100rpx;
+  margin-right: 30rpx;
+  background-color: #f8f8f8;
+  border-radius: 8rpx;
+}
+
+.exercise-content {
+  flex: 1;
+  flex-direction: column;
+}
+
+.exercise-header {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.exercise-name {
+  font-size: 36rpx;
+  color: #333333;
+  font-weight: bold;
+}
+
+.exercise-capacity {
+  font-size: 26rpx;
+  color: #666666;
+}
+
+.exercise-set {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 16rpx;
+  height: 40rpx;
+}
+
+.set-number {
+  width: 40rpx;
+  font-size: 28rpx;
+  color: #666666;
+}
+
+.set-weight {
+  flex: 1;
+  font-size: 28rpx;
+  color: #333333;
+}
+
+.set-check {
+  font-size: 28rpx;
+  color: #0078FF;
+  margin-right: 20rpx;
+}
+
+.set-rest {
+  font-size: 26rpx;
+  color: #999999;
+  width: 100rpx;
+  text-align: right;
+}
+
+/* 底部操作按钮 */
+.bottom-actions {
+  height: 120rpx;
+  flex-direction: row;
+  padding: 15rpx 30rpx;
+  border-top-width: 1rpx;
+  border-top-color: #eeeeee;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.bottom-actions .action-btn {
+  flex: 1;
+  height: 90rpx;
+  border-radius: 10rpx;
+  margin: 0 10rpx;
+  justify-content: center;
+  align-items: center;
+}
+
+.bottom-actions .action-btn:first-child {
+  margin-left: 0;
+}
+
+.bottom-actions .action-btn:last-child {
+  margin-right: 0;
+}
+
+/* 主按钮样式 */
+.primary-btn {
+  background-color: #0078FF;
+}
+
+.primary-text {
+  font-size: 28rpx;
+  color: #FFFFFF;
+}
+
+/* 次要按钮样式 */
+.secondary-btn {
+  background-color: #F5F5F5;
+}
+
+.secondary-text {
+  font-size: 28rpx;
+  color: #333333;
+}
+</style> 

@@ -4,35 +4,72 @@
 			"path": "pages/training/training",
 			"style": {
 				"navigationBarTitleText": "",
-				"nvue": true
+				"nvue": true,
+				"app-plus": {
+					"titleNView": {
+						"titleText": false
+					}
+				}
 			}
 		},
 		{
 			"path": "pages/actions/actions",
 			"style": {
 				"navigationBarTitleText": "",
-				"nvue": true
+				"nvue": true,
+				"app-plus": {
+					"titleNView": {
+						"titleText": false
+					}
+				}
 			}
 		},
 		{
 			"path": "pages/diet/diet",
 			"style": {
 				"navigationBarTitleText": "",
-				"nvue": true
+				"nvue": true,
+				"app-plus": {
+					"titleNView": {
+						"titleText": false
+					}
+				}
 			}
 		},
 		{
 			"path": "pages/calendar/calendar",
 			"style": {
 				"navigationBarTitleText": "",
-				"nvue": true
+				"nvue": true,
+				"app-plus": {
+					"titleNView": {
+						"titleText": false
+					}
+				}
 			}
 		},
 		{
 			"path": "pages/profile/profile",
 			"style": {
 				"navigationBarTitleText": "",
-				"nvue": true
+				"nvue": true,
+				"app-plus": {
+					"titleNView": {
+						"titleText": false
+					}
+				}
+			}
+		},
+		{
+			"path": "pages/training/training-popup-test",
+			"style": {
+				"navigationBarTitleText": "",
+				"nvue": true,
+				"app-plus": {
+					"titleNView": {
+						"titleText": false
+					}
+				}
 			}
 		}
 	],

@@ -1,6 +1,7 @@
 ---
 description: 健身应用功能需求和页面规范
 globs: *.nvue
+alwaysApply: false
 ---
 # 健身应用需求规范
 
