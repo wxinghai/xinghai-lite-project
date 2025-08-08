@@ -1,6 +1,5 @@
 {
-	"pages": [
-		{
+	"pages": [{
 			"path": "pages/training/training",
 			"style": {
 				"navigationBarTitleText": "",
@@ -14,18 +13,6 @@
 		},
 		{
 			"path": "pages/actions/actions",
-			"style": {
-				"navigationBarTitleText": "",
-				"nvue": true,
-				"app-plus": {
-					"titleNView": {
-						"titleText": false
-					}
-				}
-			}
-		},
-		{
-			"path": "pages/diet/diet",
 			"style": {
 				"navigationBarTitleText": "",
 				"nvue": true,
@@ -61,7 +48,21 @@
 			}
 		},
 		{
-			"path": "pages/training/training-popup-test",
+			"path": "pages/training-session/training-session",
+			"style": {
+				"navigationBarTitleText": "训练会话",
+				"nvue": true,
+				"app-plus": {
+					"bounce": "none",
+					"titleNView": {
+						"backgroundColor": "#F8F8F8",
+						"titleColor": "#333333"
+					}
+				}
+			}
+		},
+		{
+			"path": "pages/example/index",
 			"style": {
 				"navigationBarTitleText": "",
 				"nvue": true,
@@ -75,57 +76,39 @@
 	],
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
-		"navigationBarTitleText": "",
+		"navigationBarTitleText": "uni-app",
 		"navigationBarBackgroundColor": "#F8F8F8",
-		"backgroundColor": "#F8F8F8",
-		"app-plus": {
-			"titleNView": {
-				"titleText": false
-			}
-		}
+		"backgroundColor": "#F8F8F8"
 	},
 	"tabBar": {
-		"color": "#999999",
+		"color": "#7A7E83",
 		"selectedColor": "#0A84FF",
+		"borderStyle": "black",
 		"backgroundColor": "#ffffff",
-		"list": [
-			{
+		"height": "50px",
+		"fontSize": "10px",
+		"iconWidth": "24px",
+		"spacing": "3px",
+		"list": [{
 				"pagePath": "pages/training/training",
-				"text": "训练",
-				"iconPath": "static/icon/training-inactive.png",
-				"selectedIconPath": "static/icon/training-active.png"
+				"text": "训练"
 			},
 			{
 				"pagePath": "pages/actions/actions",
-				"text": "动作",
-				"iconPath": "static/icon/actions-inactive.png",
-				"selectedIconPath": "static/icon/actions-active.png"
-			},
-			{
-				"pagePath": "pages/diet/diet",
-				"text": "训练/饮食",
-				"iconPath": "static/icon/diet-inactive.png",
-				"selectedIconPath": "static/icon/diet-active.png"
+				"text": "动作"
 			},
 			{
 				"pagePath": "pages/calendar/calendar",
-				"text": "历史",
-				"iconPath": "static/icon/history-inactive.png",
-				"selectedIconPath": "static/icon/history-active.png"
+				"text": "日历"
 			},
 			{
 				"pagePath": "pages/profile/profile",
-				"text": "我的",
-				"iconPath": "static/icon/profile-inactive.png",
-				"selectedIconPath": "static/icon/profile-active.png"
+				"text": "我的"
 			}
 		]
 	},
-	"uniIdRouter": {},
 	"app-plus": {
 		"nvueCompiler": "uni-app",
-		"titleNView": {
-			"titleText": false
-		}
+		"renderer": "native"
 	}
 }
