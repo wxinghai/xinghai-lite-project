@@ -14,7 +14,7 @@
 		</view>
 		
 		<!-- 训练会话内容 -->
-		<block v-else-if="trainingData">
+		<block v-else-if="trainingData"> 
 			<!-- 页面头部 -->
 			<view class="header">
 				<view class="header-left">
@@ -38,11 +38,6 @@
 					<view class="action-button" @click="completeTraining">
 						<text class="action-button-text">完成</text>
 					</view>
-					<rest-timer 
-					 :duration="90"
-      :stepSeconds="15"
-      @finish="onRestFinish"
-      @tick="onTick"></rest-timer>
 					<view class="stats">
 						<view class="stats-text"><text class="stats-highlight">{{ completedSets }}/{{ totalSets }} 组</text></view>
 						<view class="stats-text"><text class="stats-highlight">{{ totalVolume }}kg 容量</text></view>
@@ -205,17 +200,56 @@
 				</view>
 			</view>
 		</block>
+		
+		<!-- 休息计时器弹窗 -->
+		<view  v-if="restTimer.visible" :class="{ 'zui-xiao':restTimer.minimized,'rest-timer-modal':!restTimer.minimized}">
+			<!-- 完整弹窗 -->
+			<view class="rest-dialog" v-if="!restTimer.minimized">
+				<view class="modal-header">
+					<text class="modal-title">休息计时</text>
+					<view class="minimize-btn" @click="minimizeRestTimer">
+						<text class="minimize-btn-text">最小化</text>
+					</view>
+				</view>
+				
+				<view class="timer-circle">
+					<view class="progress-ring">
+						<view class="progress-background"></view>
+						<view class="progress-indicator" :style="{ background: progressBackground }"></view>
+					</view>
+					<view class="timer-display">
+						<text class="time">{{ formattedRestTime }}</text>
+						<text class="total-time">{{ restTimer.totalSeconds }}秒</text>
+					</view>
+				</view>
+				
+				<view class="controls">
+					<view class="control-btn minus-btn" @click="subtractRestTime(10)">
+						<text class="btn-text">-10s</text>
+					</view>
+					<view class="control-btn plus-btn" @click="addRestTime(10)">
+						<text class="btn-text">+10s</text>
+					</view>
+					<view class="control-btn finish-btn" @click="completeRest">
+						<text class="btn-text">完成</text>
+					</view>
+				</view>
+			</view>
+			
+			<!-- 最小化状态 -->
+			<view class="rest-mini" v-if="restTimer.minimized" @click="maximizeRestTimer">
+					<text class="rest-mini-time">{{ formattedRestTime }}</text>
+			</view>
+		</view>
 	</view>
 </template>
 
 <script>
 	import TrainingService from '../../utils/services/TrainingService.js';
-	import RestTimer from '../../components/training/RestTimer.nvue';
+	 
 	
 	export default {
-		components: {
-			RestTimer
-		},
+	 
 		data() {
 			return {
 				// 训练会话数据
@@ -247,7 +281,19 @@
 				activeExerciseIndex: -1,
 				activeSetIndex: -1,
 				lastCompletedExerciseIndex: -1,
-				lastCompletedSetIndex: -1
+				lastCompletedSetIndex: -1,
+
+				// 休息计时器数据
+				restTimer: {
+					visible: false,
+					minimized: false,
+					totalSeconds: 60, // 默认休息时间
+					startTime: 0,
+					timerId: null,
+					remainingSeconds: 0 // 新增：用于存储当前剩余时间
+				},
+				progressBackground: '#0A84FF', // 进度条颜色
+				formattedRestTime: '00:00' // 格式化后的休息时间
 			}
 		},
 		
@@ -278,12 +324,13 @@
 			
 			// 格式化会话时间
 			formattedSessionTime() {
-				const elapsed = Math.floor((this.timer.currentTime - this.timer.startTime) / 1000);
-				const hours = Math.floor(elapsed / 3600);
-				const minutes = Math.floor((elapsed % 3600) / 60);
-				const seconds = elapsed % 60;
-				
-				return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+			// 返回 00:00 格式的会话计时
+			const elapsed = Math.floor((this.timer.currentTime - this.timer.startTime) / 1000);
+			const minutes = Math.floor(elapsed / 60);
+			const seconds = elapsed % 60;
+			const mm = minutes < 10 ? '0' + minutes : '' + minutes;
+			const ss = seconds < 10 ? '0' + seconds : '' + seconds;
+			return `${mm}:${ss}`;
 			}
 		},
 		
@@ -563,12 +610,8 @@
 						// 只有在当前组完成时才自动开始休息
 						if (this.lastCompletedExerciseIndex === exerciseIndex && 
 							this.lastCompletedSetIndex === setIndex) {
-							// 检查是否有下一组需要训练
-							const hasNextSet = this.hasNextSet(exerciseIndex, setIndex);
-							if (hasNextSet) {
-								// 启动休息计时器
-							 
-							}
+							this.testRestTimer();
+						 
 						}
 					}, 500);
 
@@ -1008,6 +1051,100 @@
 				this.showWeightDialog = false;
 				this.showRepsDialog = false;
 				this.showRestDialog = false;
+			},
+
+			// 休息计时器相关方法
+			showRestTimer() {
+				console.log('显示休息计时器');
+				this.restTimer.visible = true;
+				this.restTimer.minimized = false;
+				this.restTimer.remainingSeconds = this.restTimer.totalSeconds; // 确保初始化剩余时间
+				this.restTimer.startTime = Date.now();
+				this.formattedRestTime = this.formatTime(this.restTimer.totalSeconds);
+				this.progressBackground = `conic-gradient(#0A84FF 100%, rgba(240, 240, 240, 0.3) 0%)`;
+				
+				// 确保清除之前的定时器
+				if (this.restTimer.timerId) {
+					clearInterval(this.restTimer.timerId);
+				}
+				
+				this.restTimer.timerId = setInterval(() => {
+					this.updateRestTime();
+				}, 100);
+				
+				// 确认状态
+				console.log('Rest Timer State:', JSON.stringify(this.restTimer));
+			},
+
+			updateRestTime() {
+				const elapsed = Math.floor((Date.now() - this.restTimer.startTime) / 1000);
+				const remaining = Math.max(0, this.restTimer.totalSeconds - elapsed);
+				
+				// 保存剩余时间
+				this.restTimer.remainingSeconds = remaining;
+
+				if (remaining <= 0) {
+					this.completeRest();
+					return;
+				}
+
+				this.formattedRestTime = this.formatTime(remaining);
+				this.updateProgressRing(remaining);
+			},
+
+			formatTime(seconds) {
+				const minutes = Math.floor(seconds / 60);
+				const remainingSeconds = seconds % 60;
+				return `${minutes < 10 ? '0' + minutes : minutes}:${remainingSeconds < 10 ? '0' + remainingSeconds : remainingSeconds}`;
+			},
+
+			updateProgressRing(remainingSeconds) {
+				const progress = (remainingSeconds / this.restTimer.totalSeconds) * 100;
+				this.progressBackground = `conic-gradient(#0A84FF ${progress}%, rgba(240, 240, 240, 0.3) ${progress}%)`;
+			},
+
+			addRestTime(seconds) {
+				this.restTimer.totalSeconds += seconds;
+				this.restTimer.startTime = Date.now(); // 重置开始时间
+				this.updateRestTime();
+			},
+
+			subtractRestTime(seconds) {
+				this.restTimer.totalSeconds = Math.max(0, this.restTimer.totalSeconds - seconds);
+				this.restTimer.startTime = Date.now(); // 重置开始时间
+				this.updateRestTime();
+			},
+
+			completeRest() {
+				clearInterval(this.restTimer.timerId);
+				this.restTimer.timerId = null;
+				this.restTimer.visible = false;
+				this.restTimer.minimized = false;
+				this.restTimer.totalSeconds = 60; // 重置休息时间
+				this.formattedRestTime = '00:00';
+				this.updateProgressRing(0);
+				uni.showToast({
+					title: '休息完成',
+					icon: 'success'
+				});
+			},
+
+			minimizeRestTimer() {
+				this.restTimer.minimized = true;
+				clearInterval(this.restTimer.timerId);
+				this.restTimer.timerId = null;
+			},
+
+			maximizeRestTimer() {
+				this.restTimer.minimized = false;
+				this.restTimer.startTime = Date.now();
+				this.restTimer.timerId = setInterval(() => {
+					this.updateRestTime();
+				}, 100);
+			},
+			testRestTimer() {
+				// 启动休息计时器
+				this.showRestTimer();
 			}
 		}
 	}
@@ -1162,8 +1299,9 @@
 	/* 运动列表 */
 	.exercise-list {
 		flex: 1;
-		height: 1000rpx;
+		height: 1300rpx;
 		padding: 20rpx;
+		padding-bottom: 200rpx;
 	}
 	
 	/* 运动卡片 */
@@ -1547,21 +1685,191 @@
 	}
 
 	/* 休息计时器包装器 */
-	.rest-timer-wrapper {
-		width: 700rpx;
-		margin: 10rpx 25rpx;
-		height: 0;
-		opacity: 0;
+	.rest-timer-modal {
+		position: absolute;
+		width: 750rpx;
+		top: 0;
+		z-index: 1000;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+		background-color: rgba(0, 0, 0, 0.8);
+		bottom: 0;
+		 
+	}
+	.zui-xiao { 
+		position: absolute;
+		width: 150rpx;
+		height: 150rpx;
+		z-index: 1000;
+		right: 0;
+		border-radius: 75rpx;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+		background-color: rgba(0, 0, 0, 0.8);
+		bottom: 150rpx;  
+	}
+ 
+	.rest-dialog {
+		width: 600rpx;
+		background-color: #ffffff;
+		border-radius: 20rpx;
 		overflow: hidden;
-		transition-property: height, opacity;
-		transition-duration: 0.3s;
+		box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.2);
+		flex-direction: column;
+		align-items: center;
+		padding: 40rpx 0;
 	}
-
-	.rest-timer-wrapper.visible {
-		height: 80rpx;
-		opacity: 1;
-		margin-bottom: 20rpx;
+	
+	.modal-header {
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+		width: 600rpx;
+		padding: 0 30rpx;
+		margin-bottom: 30rpx;
 	}
+	
+	.modal-title {
+		font-size: 40rpx;
+		font-weight: bold;
+		color: #333333;
+	}
+	
+	.minimize-btn {
+		padding: 10rpx 20rpx;
+		background-color: #f0f0f0;
+		border-radius: 10rpx;
+		align-items: center;
+	}
+	
+	.minimize-btn-text {
+		font-size: 28rpx;
+		color: #666666;
+	}
+	
+	/* 进度环相关样式 */
+	.timer-circle {
+		width: 300rpx;
+		height: 300rpx;
+		position: relative;
+		margin-bottom: 30rpx;
+		border-radius: 150rpx;
+		overflow: hidden;
+	}
+	
+	.progress-ring {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 300rpx;
+		height: 300rpx;
+		border-radius: 150rpx;
+	}
+	
+	.progress-background {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		border-radius: 150rpx;
+		background-color: rgba(240, 240, 240, 0.3);
+	}
+	
+	.progress-indicator {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		border-radius: 150rpx;
+		/* 背景色将在JS中动态设置为渐变 */
+	}
+	
+	.timer-display {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		background-color: #ffffff;
+		border-radius: 150rpx;
+		transform: scale(0.9);
+		z-index: 10;
+	}
+	
+	.time {
+		font-size: 80rpx;
+		font-weight: bold;
+		color: #333333;
+	}
+	
+	.total-time {
+		font-size: 28rpx;
+		color: #999999;
+		margin-top: 10rpx;
+	}
+	
+	.controls {
+		flex-direction: row;
+		justify-content: space-around;
+		width: 600rpx;
+		padding: 0 30rpx;
+		margin-top: 30rpx;
+	}
+	
+	.control-btn {
+		padding: 15rpx 30rpx;
+		background-color: #f0f0f0;
+		border-radius: 15rpx;
+		align-items: center;
+		justify-content: center;
+	}
+	
+	.control-btn.minus-btn {
+		background-color: #ff3b30;
+	}
+	
+	.control-btn.plus-btn {
+		background-color: #0A84FF;
+	}
+	
+	.control-btn.finish-btn {
+		background-color: #0A84FF;
+	}
+	
+	.btn-text {
+		color: #ffffff;
+		font-size: 32rpx;
+		font-weight: bold;
+	}
+	
+	.rest-mini {
+	 
+		height: 150rpx;
+		width: 150rpx;
+		border-radius: 75rpx;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+		background-color: transparent;
+	 
+	}
+ 
+	
+	.rest-mini-time {
+		font-size: 40rpx;
+		font-weight: bold;
+		color: #ffffff;
+		background-color: transparent;
+	}
+ 
 	
 	/* 无数据时 */
 	.no-data {
