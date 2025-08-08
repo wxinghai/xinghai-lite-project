@@ -3,15 +3,6 @@
 		<!-- 页面标题 -->
 		<view class="header">
 			<text class="header-title">今日训练</text>
-			<!-- 测试按钮 -->
-			<view class="header-buttons">
-				<view class="test-floating" @click="testFloatingTimer">
-					<text class="test-floating-text">测试悬浮窗</text>
-				</view>
-				<view class="test-floating" @click="testRestTimer">
-					<text class="test-floating-text">测试休息</text>
-				</view>
-			</view>
 		</view>
 		
 		<!-- 训练卡片 -->
@@ -96,22 +87,6 @@
 				activeTag: 0,
 				showOldPlans: true,
 				tags: ['减脂塑形', '部位专攻', '增肌·男', '增肌·女', '力量举', '旧计划'],
-				// 训练会话状态
-				trainingSession: {
-					timeElapsed: 0,    // 已经过的时间（秒）
-					totalTime: 3600,   // 会话总时间（秒）
-					isRunning: false,  // 是否正在进行
-					exercisesDone: 0,  // 已完成动作数
-					totalExercises: 3  // 总动作数
-				},
-				// 悬浮窗状态
-				floatingTimerVisible: false,
-				// 模拟训练计时器
-				sessionTimerId: null,
-				// 休息计时器状态
-				restTimerVisible: false,
-				// 休息计时最小化状态
-				restTimerMinimized: false,
 				plans: [
 					{
 						title: '男生减脂塑形捷径',
@@ -182,45 +157,6 @@
 			}
 		},
 		
-		onLoad() {
-			// 监听悬浮窗点击事件
-			uni.$on('floating-timer-clicked', this.onFloatingTimerClicked);
-			// 监听休息计时器事件
-			uni.$on('rest-timer-completed', this.onRestTimerCompleted);
-			uni.$on('rest-timer-minimize', this.onRestTimerMinimize);
-		},
-		
-		onReady() {
-			// 等待页面加载完成后初始化subNVue
-			// 注意：subNVue需要在页面准备好之后才能获取
-			setTimeout(() => {
-				// 预加载subNVue组件，但不显示
-				const floatingTimer = uni.getSubNVueById('floatingTimer');
-				const restTimer = uni.getSubNVueById('restTimer');
-				
-				if (floatingTimer) {
-					console.log('成功获取悬浮窗组件');
-				} else {
-					console.error('无法获取悬浮窗组件');
-				}
-				
-				if (restTimer) {
-					console.log('成功获取休息计时器组件');
-				} else {
-					console.error('无法获取休息计时器组件');
-				}
-			}, 300);
-		},
-		
-		onUnload() {
-			// 清理事件监听
-			uni.$off('floating-timer-clicked', this.onFloatingTimerClicked);
-			uni.$off('rest-timer-completed', this.onRestTimerCompleted);
-			uni.$off('rest-timer-minimize', this.onRestTimerMinimize);
-			// 停止计时器
-			this.stopSessionTimer();
-		},
-		
 		computed: {
 			filteredPlans() {
 				// 根据当前选择的标签过滤计划
@@ -253,200 +189,11 @@
 				console.log('查看计划: ', plan.title);
 			},
 			
-			// 测试悬浮窗功能
-			testFloatingTimer() {
-				if (this.floatingTimerVisible) {
-					this.hideFloatingTimer();
-					this.stopSessionTimer();
-				} else {
-					this.showFloatingTimer();
-					this.startSessionTimer();
-				}
-			},
-			
-			// 开始训练会话
-			startTraining() {
-				// 简化版：直接显示悬浮窗
-				this.showFloatingTimer();
-				this.startSessionTimer();
-				
-				// 实际使用中可能需要跳转到训练会话页面
-				// uni.navigateTo({
-				//     url: '/pages/training-session/training-session'
-				// });
-			},
-			
-			// 显示悬浮计时器
-			showFloatingTimer() {
-				try {
-					const subNVue = uni.getSubNVueById('floatingTimer');
-					if (subNVue) {
-						subNVue.show('slide-in-right', 300, () => {
-							// 发送初始状态
-							uni.$emit('update-floating-timer', {
-								timeElapsed: this.trainingSession.timeElapsed,
-								totalTime: this.trainingSession.totalTime,
-								isRunning: true
-							});
-							this.floatingTimerVisible = true;
-						});
-					} else {
-						// 显示错误信息
-						uni.showToast({
-							title: '悬浮窗组件未找到，请重启应用',
-							icon: 'none',
-							duration: 3000
-						});
-						console.error('悬浮窗组件未找到 - floatingTimer');
-					}
-				} catch(err) {
-					console.error('显示悬浮窗错误:', err);
-					// 显示错误信息
-					uni.showToast({
-						title: '显示悬浮窗出错，请重启应用',
-						icon: 'none',
-						duration: 3000
-					});
-				}
-			},
-			
-			// 隐藏悬浮计时器
-			hideFloatingTimer() {
-				const subNVue = uni.getSubNVueById('floatingTimer');
-				if (subNVue) {
-					subNVue.hide('slide-out-right', 300);
-					this.floatingTimerVisible = false;
-				}
-			},
-			
-			// 处理悬浮窗点击事件
-			onFloatingTimerClicked() {
-				// 这里可以处理回到训练会话页面的逻辑
-				console.log('悬浮窗被点击，回到训练会话页面');
-				
-				// 实际使用中可能需要跳转或恢复训练会话页面
-				// uni.navigateTo({
-				//     url: '/pages/training-session/training-session'
-				// });
-				
-				// 为演示目的，简单地暂停计时器
-				this.stopSessionTimer();
-			},
-			
-			// 启动会话计时器（模拟训练进行）
-			startSessionTimer() {
-				// 停止任何现有计时器
-				this.stopSessionTimer();
-				
-				// 如果已有计时，从当前时间继续
-				const startTime = Date.now() - this.trainingSession.timeElapsed * 1000;
-				this.trainingSession.isRunning = true;
-				
-				// 每秒更新一次时间
-				this.sessionTimerId = setInterval(() => {
-					// 更新经过的时间
-					const elapsed = Math.floor((Date.now() - startTime) / 1000);
-					this.trainingSession.timeElapsed = elapsed;
-					
-					// 向悬浮窗发送更新
-					if (this.floatingTimerVisible) {
-						uni.$emit('update-floating-timer', {
-							timeElapsed: this.trainingSession.timeElapsed,
-							isRunning: this.trainingSession.isRunning
-						});
-					}
-					
-					// 示例：每30秒增加一个已完成的动作
-					if (elapsed > 0 && elapsed % 30 === 0) {
-						if (this.trainingSession.exercisesDone < this.trainingSession.totalExercises) {
-							this.trainingSession.exercisesDone++;
-							// 更新悬浮窗进度
-							uni.$emit('update-floating-timer', {
-								totalTime: this.trainingSession.totalTime,
-								isRunning: this.trainingSession.isRunning
-							});
-						}
-					}
-				}, 1000);
-			},
-			
-			// 停止会话计时器
-			stopSessionTimer() {
-				if (this.sessionTimerId) {
-					clearInterval(this.sessionTimerId);
-					this.sessionTimerId = null;
-					this.trainingSession.isRunning = false;
-					
-					// 通知悬浮窗停止计时
-					if (this.floatingTimerVisible) {
-						uni.$emit('update-floating-timer', {
-							isRunning: false
-						});
-					}
-				}
-			},
-			
-			// 显示休息计时器
-			showRestTimer(seconds = 60) {
-				try {
-					const subNVue = uni.getSubNVueById('restTimer');
-					if (subNVue) {
-						// 显示休息计时器
-						subNVue.show('fade-in', 300, () => {
-							this.restTimerVisible = true;
-							this.restTimerMinimized = false;
-							
-							// 可以在这里设置初始时间等
-							// TODO: 实现真正的接口调用
-						});
-					} else {
-						// 显示错误信息
-						uni.showToast({
-							title: '休息计时器组件未找到，请重启应用',
-							icon: 'none',
-							duration: 3000
-						});
-						console.error('休息计时器组件未找到 - restTimer');
-					}
-				} catch(err) {
-					console.error('显示休息计时器错误:', err);
-					// 显示错误信息
-					uni.showToast({
-						title: '显示休息计时器出错，请重启应用',
-						icon: 'none',
-						duration: 3000
-					});
-				}
-			},
-			
-			// 处理休息计时器完成事件
-			onRestTimerCompleted() {
-				this.restTimerVisible = false;
-				this.restTimerMinimized = false;
-				
-				// 这里可以添加休息结束后的逻辑
-				uni.showToast({
-					title: '休息时间结束',
-					icon: 'none'
+			// 开始训练
+			startTraining(trainingItem) {
+				uni.navigateTo({
+					url: '/pages/training-session/training-session'
 				});
-			},
-			
-			// 处理休息计时器最小化事件
-			onRestTimerMinimize(data) {
-				this.restTimerVisible = true;
-				this.restTimerMinimized = true;
-				
-				// 这里可以实现最小化显示休息计时器
-				// 在实际应用中，可能需要创建一个小型悬浮窗显示剩余时间
-				uni.showToast({
-					title: '休息计时器已最小化',
-					icon: 'none'
-				});
-			},
-			
-			// 测试休息计时器
-			testRestTimer() {
-				this.showRestTimer(60); // 显示60秒休息计时器
 			}
 		}
 	}
@@ -634,27 +381,10 @@
 		text-align: center;
 	}
 	
-	/* 添加测试按钮样式 */
 	.header {
 		flex-direction: row;
 		justify-content: space-between;
 		align-items: center;
 		padding: 20rpx 30rpx;
-	}
-	
-	.header-buttons {
-		flex-direction: row;
-	}
-	
-	.test-floating {
-		background-color: #0A84FF;
-		border-radius: 10rpx;
-		padding: 10rpx 20rpx;
-		margin-left: 10rpx;
-	}
-	
-	.test-floating-text {
-		color: #FFFFFF;
-		font-size: 28rpx;
 	}
 </style> 
