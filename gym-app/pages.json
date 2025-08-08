@@ -60,18 +60,6 @@
 					}
 				}
 			}
-		},
-		{
-			"path": "pages/example/index",
-			"style": {
-				"navigationBarTitleText": "",
-				"nvue": true,
-				"app-plus": {
-					"titleNView": {
-						"titleText": false
-					}
-				}
-			}
 		}
 	],
 	"globalStyle": {

@@ -1,224 +1,230 @@
 <template>
 	<view class="container">
-		<!-- 页面头部 -->
-		<view class="header">
-			<view class="header-left">
-				<text class="timer">00:00</text>
-				<view class="training-name">
-					<text class="training-title">{{ trainingData.title }}</text>
-					<text class="training-name-edit" @click="editTrainingName">✏️</text>
-				</view>
-			</view>
-			
-			<view class="header-right">
-				<view class="action-button" @click="completeTraining">
-					<text class="action-button-text">完成</text>
-				</view>
-				<view class="stats">
-					<text class="stats-text"><text class="stats-highlight">{{ completedSets }}</text>/<text class="stats-highlight">{{ totalSets }}</text> 组</text>
-					<text class="stats-text"><text class="stats-highlight">{{ totalVolume }}</text> kg 容量</text>
-				</view>
+		<!-- 加载中 -->
+		<view v-if="loading" class="loading-container">
+			<text class="loading-text">加载训练数据中...</text>
+		</view>
+		
+		<!-- 错误提示 -->
+		<view v-else-if="error" class="error-container">
+			<text class="error-text">{{ error }}</text>
+			<view class="error-button" @click="goBack">
+				<text class="error-button-text">返回</text>
 			</view>
 		</view>
 		
-		<!-- 运动列表 -->
-		<list class="exercise-list" show-scrollbar="false">
-			<cell v-for="(exercise, exerciseIndex) in trainingData.exercises" :key="exercise.id">
-				<view class="exercise-card" :class="{ 'collapsed': exercise.collapsed }">
-					<!-- 运动标题栏 -->
-					<view class="exercise-header" @click="toggleExerciseCollapse(exerciseIndex)">
-						<view class="exercise-name-wrapper">
-							<text class="exercise-name">{{ exercise.name }}</text>
+		<!-- 训练会话内容 -->
+		<block v-else-if="trainingData">
+			<!-- 页面头部 -->
+			<view class="header">
+				<view class="header-left">
+					<view class="timer-container">
+						<text class="timer">{{ formattedSessionTime }}</text>
+						<!-- 计时器控制按钮 -->
+						<view v-if="!timer.isRunning" class="timer-control-button start" @click="startTimer">
+							<text class="timer-button-text">开始计时</text>
+						</view>
+						<view v-else class="timer-control-button pause" @click="pauseTimer">
+							<text class="timer-button-text">暂停</text>
+						</view>
+					</view>
+					<view class="training-name">
+						<text class="training-title">{{ trainingData.title }}</text>
+						<text class="training-name-edit" @click="editTrainingName">✏️</text>
+					</view>
+				</view>
+				
+				<view class="header-right">
+					<view class="action-button" @click="completeTraining">
+						<text class="action-button-text">完成</text>
+					</view>
+					<rest-timer 
+					 :duration="90"
+      :stepSeconds="15"
+      @finish="onRestFinish"
+      @tick="onTick"></rest-timer>
+					<view class="stats">
+						<view class="stats-text"><text class="stats-highlight">{{ completedSets }}/{{ totalSets }} 组</text></view>
+						<view class="stats-text"><text class="stats-highlight">{{ totalVolume }}kg 容量</text></view>
+					</view>
+				</view>
+			</view>
+			<!-- 运动列表 -->
+			<list class="exercise-list" show-scrollbar="false">
+				<cell v-for="(exercise, exerciseIndex) in trainingData.exercises" :key="exercise.id">
+					<view 
+						class="exercise-card" 
+						:class="{ 'collapsed': exercise.collapsed }"
+						:ref="`exercise-${exerciseIndex}`"
+					>
+						<!-- 运动标题栏 -->
+						<view class="exercise-header" @click="toggleExerciseCollapse(exerciseIndex)">
+							<view class="exercise-name-wrapper">
+								<text class="exercise-name">{{ exercise.name }}</text>
+							</view>
 							
-							<!-- 折叠状态下显示进度 -->
-							<view class="exercise-progress" v-if="exercise.collapsed">
-								<text class="exercise-sets-count">{{ exercise.sets.length }}组</text>
-								<view class="exercise-dots">
-									<view 
-										v-for="(set, dotIndex) in exercise.sets" 
-										:key="'dot-'+dotIndex" 
-										class="dot"
-										:class="{ 'completed': set.completed }"
-									></view>
+							<view class="exercise-actions">
+								<view class="icon-button" @click.stop="showExerciseNotes(exerciseIndex)">
+									<text class="icon">📝</text>
+								</view>
+								<view class="icon-button" @click.stop="showExerciseMenu(exerciseIndex)">
+									<text class="icon">⋯</text>
 								</view>
 							</view>
 						</view>
 						
-						<view class="exercise-actions">
-							<view class="icon-button" @click.stop="showExerciseNotes(exerciseIndex)">
-								<text class="icon">📝</text>
-							</view>
-							<view class="icon-button" @click.stop="showExerciseMenu(exerciseIndex)">
-								<text class="icon">⋯</text>
+						<!-- 折叠状态下显示进度 -->
+						<view class="exercise-progress" v-if="exercise.collapsed">
+							<text class="exercise-sets-count">{{ exercise.sets.length }}组</text>
+							<view class="exercise-dots">
+								<view 
+									v-for="(set, dotIndex) in exercise.sets" 
+									:key="'dot-'+dotIndex" 
+									class="dot"
+									:class="{ 'completed': set.completed }"
+								></view>
 							</view>
 						</view>
-					</view>
-					
-					<!-- 运动详情内容 -->
-					<view class="collapsible-content">
-						<!-- 组数列表 -->
-						<view class="set-list">
-							<view class="set-list-header">
-								<text class="set-list-title">组数信息</text>
-								<view class="unit-toggle">
-									<view 
-										class="unit-toggle-btn" 
-										:class="{ 'active': exercise.weightUnit === 'kg' }"
-										@click="changeWeightUnit(exerciseIndex, 'kg')"
-									>
-										<text class="unit-text" :class="{ 'active-text': exercise.weightUnit === 'kg' }">KG</text>
-									</view>
-									<view 
-										class="unit-toggle-btn"
-										:class="{ 'active': exercise.weightUnit === 'lbs' }"
-										@click="changeWeightUnit(exerciseIndex, 'lbs')"
-									>
-										<text class="unit-text" :class="{ 'active-text': exercise.weightUnit === 'lbs' }">LBS</text>
-									</view>
-								</view>
-							</view>
-							
-							<!-- 组数表头 -->
-							<view class="set-row set-header">
-								<text class="set-header-text set-number-col">组数</text>
-								<text class="set-header-text set-weight-col">
-									重量({{ exercise.weightUnit }})
-								</text>
-								<text class="set-header-text set-reps-col">次数</text>
-								<text class="set-header-text set-complete-col">完成</text>
-								<text class="set-header-text set-actions-col"></text>
-							</view>
-							
+						
+						<!-- 运动详情内容 -->
+						<view class="collapsible-content">
 							<!-- 组数列表 -->
-							<view 
-								class="set-row" 
-								v-for="(set, setIndex) in exercise.sets"
-								:key="'set-'+exerciseIndex+'-'+setIndex"
-							>
-								<text class="set-number-col">{{ setIndex + 1 }}</text>
-								<view class="set-weight-col">
-									<input 
-										class="set-input" 
-										type="number" 
-										v-model="set.weight" 
-										@change="calculateVolume"
-									/>
-								</view>
-								<view class="set-reps-col">
-									<input 
-										class="set-input" 
-										type="number" 
-										v-model="set.reps" 
-										@change="calculateVolume"
-									/>
-								</view>
-								<view class="set-complete-col" @click="toggleSetComplete(exerciseIndex, setIndex)">
-									<view class="custom-checkbox">
-										<view class="checkbox-inner" v-if="set.completed">
-											<text class="checkbox-icon">✓</text>
+							<view class="set-list">
+								<view class="set-list-header">
+									<text class="set-list-title">组数信息</text>
+									<view class="unit-toggle">
+										<view 
+											class="unit-toggle-btn" 
+											:class="{ 'active': exercise.weightUnit === 'kg' }"
+											@click="changeWeightUnit(exerciseIndex, 'kg')"
+										>
+											<text class="unit-text" :class="{ 'active-text': exercise.weightUnit === 'kg' }">KG</text>
+										</view>
+										<view 
+											class="unit-toggle-btn"
+											:class="{ 'active': exercise.weightUnit === 'lbs' }"
+											@click="changeWeightUnit(exerciseIndex, 'lbs')"
+										>
+											<text class="unit-text" :class="{ 'active-text': exercise.weightUnit === 'lbs' }">LBS</text>
 										</view>
 									</view>
 								</view>
-								<view class="set-actions-col">
-									<view class="set-actions-btn" @click="showSetMenu(exerciseIndex, setIndex)">
-										<text class="icon">⋯</text>
+								
+								<!-- 组数表头 -->
+								<view class="set-row set-header">
+									<text class="set-header-text set-number-col">组数</text>
+									<text class="set-header-text set-weight-col">
+										重量({{ exercise.weightUnit }})
+									</text>
+									<text class="set-header-text set-reps-col">次数</text>
+									<text class="set-header-text set-complete-col">完成</text>
+									<text class="set-header-text set-actions-col"></text>
+								</view>
+								
+								<!-- 组数列表 -->
+								<view 
+									class="set-row" 
+									v-for="(set, setIndex) in exercise.sets"
+									:key="'set-'+exerciseIndex+'-'+setIndex"
+								>
+									<text class="set-number-col">{{ setIndex + 1 }}</text>
+									<view class="set-weight-col">
+										<input 
+											class="set-input" 
+											type="number" 
+											v-model="set.weight" 
+											@change="calculateVolume"
+										/>
 									</view>
+									<view class="set-reps-col">
+										<input 
+											class="set-input" 
+											type="number" 
+											v-model="set.reps" 
+											@change="calculateVolume"
+										/>
+									</view>
+									<view class="set-complete-col" @click="toggleSetComplete(exerciseIndex, setIndex)">
+										<view class="custom-checkbox">
+											<view class="checkbox-inner" v-if="set.completed">
+												<text class="checkbox-icon">✓</text>
+											</view>
+										</view>
+									</view>
+									<view class="set-actions-col">
+										<view class="set-actions-btn" @click="showSetMenu(exerciseIndex, setIndex)">
+											<text class="icon">⋯</text>
+										</view>
+									</view>
+								</view>
+								
+								<!-- 添加组数按钮 -->
+								<view class="add-set" @click="addSet(exerciseIndex)">
+									<text class="add-set-text">+ 添加组数</text>
 								</view>
 							</view>
 							
-							<!-- 添加组数按钮 -->
-							<view class="add-set" @click="addSet(exerciseIndex)">
-								<text class="add-set-text">+ 添加组数</text>
+							<!-- 备注信息 -->
+							<view class="exercise-notes" v-if="exercise.notes">
+								<text class="notes-text">{{ exercise.notes }}</text>
 							</view>
 						</view>
-						
-						<!-- 备注信息 -->
-						<view class="exercise-notes" v-if="exercise.notes">
-							<text class="notes-text">{{ exercise.notes }}</text>
-						</view>
 					</view>
-				</view>
-			</cell>
+				</cell>
+				
+				<!-- 添加动作按钮 -->
+				<cell>
+					<view class="add-exercise" @click="showAddExerciseModal">
+						<text class="add-exercise-text">+ 添加动作</text>
+					</view>
+				</cell>
+			</list>
 			
-			<!-- 添加动作按钮 -->
-			<cell>
-				<view class="add-exercise" @click="showAddExerciseModal">
-					<text class="add-exercise-text">+ 添加动作</text>
+			<!-- 底部导航 -->
+			<view class="bottom-nav">
+				<view class="bottom-nav-btn" @click="minimizeSession">
+					<text class="bottom-icon">⬇️</text>
+					<text class="bottom-text">最小化</text>
 				</view>
-			</cell>
-		</list>
-		
-		<!-- 底部导航 -->
-		<view class="bottom-nav">
-			<view class="bottom-nav-btn" @click="minimizeSession">
-				<text class="bottom-icon">⬇️</text>
-				<text class="bottom-text">最小化</text>
+				<view class="bottom-nav-btn" @click="testRestTimer">
+					<text class="bottom-icon">⏱️</text>
+					<text class="bottom-text">休息计时</text>
+				</view>
+				<view class="bottom-nav-btn" @click="showAddExerciseModal">
+					<text class="bottom-icon">➕</text>
+					<text class="bottom-text">添加动作</text>
+				</view>
+				<view class="bottom-nav-btn delete" @click="showDeleteConfirm">
+					<text class="bottom-icon">🗑️</text>
+					<text class="bottom-text">删除训练</text>
+				</view>
+				<view class="bottom-nav-btn save" @click="saveAndExit">
+					<text class="bottom-icon">💾</text>
+					<text class="bottom-text">保存返回</text>
+				</view>
 			</view>
-			<view class="bottom-nav-btn" @click="showAddExerciseModal">
-				<text class="bottom-icon">➕</text>
-				<text class="bottom-text">添加动作</text>
-			</view>
-			<view class="bottom-nav-btn delete" @click="showDeleteConfirm">
-				<text class="bottom-icon">🗑️</text>
-				<text class="bottom-text">删除训练</text>
-			</view>
-			<view class="bottom-nav-btn save" @click="saveAndExit">
-				<text class="bottom-icon">💾</text>
-				<text class="bottom-text">保存返回</text>
-			</view>
-		</view>
+		</block>
 	</view>
 </template>
 
 <script>
+	import TrainingService from '../../utils/services/TrainingService.js';
+	import RestTimer from '../../components/training/RestTimer.nvue';
+	
 	export default {
+		components: {
+			RestTimer
+		},
 		data() {
 			return {
 				// 训练会话数据
-				trainingData: {
-					id: null,
-					title: "70% 腿训",
-					startTime: Date.now(),
-					totalTime: 0,
-					exercises: [
-						{
-							id: 1,
-							name: "深蹲",
-							collapsed: false,
-							weightUnit: 'kg',
-							notes: "保持脚尖微微朝外，每组之间休息90秒",
-							sets: [
-								{ weight: 50, reps: 10, completed: true },
-								{ weight: 55, reps: 8, completed: true },
-								{ weight: 60, reps: 6, completed: false }
-							]
-						},
-						{
-							id: 2,
-							name: "腿举",
-							collapsed: false,
-							weightUnit: 'kg',
-							notes: "注意脚的位置，不要锁膝",
-							sets: [
-								{ weight: 100, reps: 12, completed: true },
-								{ weight: 110, reps: 10, completed: true },
-								{ weight: 120, reps: 8, completed: false }
-							]
-						},
-						{
-							id: 3,
-							name: "腿弯举",
-							collapsed: false,
-							weightUnit: 'kg',
-							notes: "",
-							sets: [
-								{ weight: 40, reps: 12, completed: true },
-								{ weight: 45, reps: 10, completed: true },
-								{ weight: 50, reps: 8, completed: false },
-								{ weight: 55, reps: 8, completed: false }
-							]
-						}
-					]
+				trainingData: null,
+				// 计时器
+				timer: {
+					startTime: 0,
+					currentTime: 0,
+					isRunning: false,
+					timerId: null
 				},
 				// 总重量
 				totalVolume: 0,
@@ -226,13 +232,29 @@
 				activeSetMenu: {
 					exerciseIndex: -1,
 					setIndex: -1
-				}
+				},
+				// 页面状态
+				loading: true,
+				error: null,
+				
+				// 休息计时器相关
+				restTimerVisible: false,
+				 
+				nextExerciseInfo: '',
+				
+				// 保存当前操作的练习和组索引
+				activeExerciseIndex: -1,
+				activeSetIndex: -1,
+				lastCompletedExerciseIndex: -1,
+				lastCompletedSetIndex: -1
 			}
 		},
 		
 		computed: {
 			// 计算已完成组数
 			completedSets() {
+				if (!this.trainingData) return 0;
+				
 				let count = 0;
 				this.trainingData.exercises.forEach(exercise => {
 					exercise.sets.forEach(set => {
@@ -244,11 +266,23 @@
 			
 			// 计算总组数
 			totalSets() {
+				if (!this.trainingData) return 0;
+				
 				let count = 0;
 				this.trainingData.exercises.forEach(exercise => {
 					count += exercise.sets.length;
 				});
 				return count;
+			},
+			
+			// 格式化会话时间
+			formattedSessionTime() {
+				const elapsed = Math.floor((this.timer.currentTime - this.timer.startTime) / 1000);
+				const hours = Math.floor(elapsed / 3600);
+				const minutes = Math.floor((elapsed % 3600) / 60);
+				const seconds = elapsed % 60;
+				
+				return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 			}
 		},
 		
@@ -256,13 +290,26 @@
 			// 如果有传入训练ID，则加载该训练
 			if (options.id) {
 				this.loadTraining(options.id);
+			} else {
+				// 检查是否有进行中的训练
+				const activeTraining = TrainingService.getActiveTraining();
+				if (activeTraining) {
+					this.trainingData = activeTraining;
+					this.loading = false;
+					
+					// 恢复计时器
+					this.timer.startTime = activeTraining.startTime;
+					this.timer.currentTime = Date.now();
+					
+					// 如果会话中记录了计时器状态，则恢复
+					if (activeTraining.timerRunning) {
+						this.startTimer();
+					}
+				} else {
+					this.error = '未找到训练会话';
+					this.loading = false;
+				}
 			}
-			
-			// 初始计算总重量
-			this.$nextTick(() => {
-				this.calculateVolume();
-				console.log('初始化计算完成：', this.totalVolume, this.completedSets, this.totalSets);
-			});
 		},
 		
 		onReady() {
@@ -270,29 +317,148 @@
 		},
 		
 		onUnload() {
-			// 页面卸载时执行
+			// 停止计时器
+			this.stopTimer();
+			
+			// 保存当前训练状态
+			if (this.trainingData) {
+				TrainingService.updateActiveTraining(this.trainingData);
+			}
 		},
 		
 		methods: {
+  onRestFinish(elapsed) {
+      // elapsed 为本次休息的实际时长（秒）
+      uni.showToast({ title: `休息用时 ${elapsed}s`, icon: 'none' })
+      // 下一次休息：可更新父级的 duration 触发下一轮，或使用 :key 强制重建组件
+    },
+	onRestFinish() {},
+    onTick(remaining) {
+      // 每秒回调（可选）
+    },
+
+			// 加载训练数据
+			loadTraining(id) {
+				try {
+					this.loading = true;
+					
+					// 获取活动训练会话
+					const activeTraining = TrainingService.getActiveTraining();
+					
+					// 如果是当前会话，直接使用
+					if (activeTraining && activeTraining.id === id) {
+						this.trainingData = activeTraining;
+						
+						// 设置计时器初始时间，但不自动启动
+						this.timer.startTime = activeTraining.startTime || Date.now();
+						this.timer.currentTime = Date.now();
+						
+						// 如果会话中记录了计时器状态，则恢复
+						if (activeTraining.timerRunning) {
+							this.startTimer();
+						}
+					} else {
+						// 查找训练计划
+						const trainingPlanId = id.replace('session_', 'plan_');
+						const trainingPlan = TrainingService.getTrainingPlanById(trainingPlanId);
+						
+						if (trainingPlan) {
+							// 开始新训练
+							this.trainingData = TrainingService.startTraining(trainingPlan);
+							this.timer.startTime = this.trainingData.startTime;
+							this.timer.currentTime = this.timer.startTime;
+							
+							// 不自动启动计时器
+						} else {
+							this.error = '训练计划不存在';
+						}
+					}
+					
+					// 初始计算总重量
+					this.$nextTick(() => {
+						this.calculateVolume();
+					});
+				} catch (err) {
+					console.error('加载训练会话出错:', err);
+					this.error = '加载训练会话失败';
+				} finally {
+					this.loading = false;
+				}
+			},
+			
+			// 启动计时器
+			startTimer() {
+				if (this.timer.timerId) return;
+				
+				// 如果是首次启动计时器，重置开始时间
+				if (this.timer.currentTime === this.timer.startTime) {
+					this.timer.startTime = Date.now();
+					this.timer.currentTime = Date.now();
+					
+					// 更新到训练数据中
+					if (this.trainingData) {
+						this.trainingData.startTime = this.timer.startTime;
+					}
+				}
+				
+				this.timer.isRunning = true;
+				this.timer.timerId = setInterval(() => {
+					this.timer.currentTime = Date.now();
+				}, 1000);
+				
+				// 更新训练会话中的计时器状态
+				if (this.trainingData) {
+					this.trainingData.timerRunning = true;
+					TrainingService.updateActiveTraining(this.trainingData);
+				}
+			},
+			
+			// 暂停计时器
+			pauseTimer() {
+				if (this.timer.timerId) {
+					clearInterval(this.timer.timerId);
+					this.timer.timerId = null;
+					this.timer.isRunning = false;
+					
+					// 更新训练会话中的计时器状态
+					if (this.trainingData) {
+						this.trainingData.timerRunning = false;
+						TrainingService.updateActiveTraining(this.trainingData);
+					}
+				}
+			},
+			
+			// 停止计时器
+			stopTimer() {
+				if (this.timer.timerId) {
+					clearInterval(this.timer.timerId);
+					this.timer.timerId = null;
+					this.timer.isRunning = false;
+				}
+			},
+			
 			// 计算总重量
 			calculateVolume() {
 				let volume = 0;
-				this.trainingData.exercises.forEach(exercise => {
-					exercise.sets.forEach(set => {
-						// 只计算已完成的组
-						if (set.completed) {
-							let weight = parseFloat(set.weight) || 0;
-							let reps = parseInt(set.reps) || 0;
-							
-							// 如果是磅，转换为公斤
-							if (exercise.weightUnit === 'lbs') {
-								weight = weight * 0.453592;
+				
+				if (this.trainingData && this.trainingData.exercises) {
+					this.trainingData.exercises.forEach(exercise => {
+						exercise.sets.forEach(set => {
+							// 只计算已完成的组
+							if (set.completed) {
+								let weight = parseFloat(set.weight) || 0;
+								let reps = parseInt(set.reps) || 0;
+								
+								// 如果是磅，转换为公斤
+								if (exercise.weightUnit === 'lbs') {
+									weight = weight * 0.453592;
+								}
+								
+								volume += weight * reps;
 							}
-							
-							volume += weight * reps;
-						}
+						});
 					});
-				});
+				}
 				
 				// 取整
 				this.totalVolume = Math.round(volume);
@@ -301,6 +467,35 @@
 			// 切换运动折叠状态
 			toggleExerciseCollapse(index) {
 				this.trainingData.exercises[index].collapsed = !this.trainingData.exercises[index].collapsed;
+				
+				// 触发布局更新
+				this.$nextTick(() => {
+					// 强制重新计算布局
+					setTimeout(() => {
+						// 在iOS和Android上可能需要不同的方式来触发重绘
+						if (uni.getSystemInfoSync().platform === 'ios') {
+							// iOS上的布局刷新方法
+							const currentPage = getCurrentPages()[getCurrentPages().length - 1];
+							if (currentPage && currentPage.$vm && currentPage.$vm.$forceUpdate) {
+								currentPage.$vm.$forceUpdate();
+							}
+						} else {
+							// Android上可能需要触发滚动来刷新列表
+							const dom = uni.requireNativePlugin('dom');
+							if (dom && dom.scrollToElement) {
+								try {
+									// 尝试滚动到当前元素
+									const el = this.$refs[`exercise-${index}`];
+									if (el) {
+										dom.scrollToElement(el, { offset: 0 });
+									}
+								} catch (e) {
+									console.log('滚动刷新失败', e);
+								}
+							}
+						}
+					}, 50);
+				});
 			},
 			
 			// 切换重量单位
@@ -332,13 +527,91 @@
 			
 			// 切换组完成状态
 			toggleSetComplete(exerciseIndex, setIndex) {
-				const set = this.trainingData.exercises[exerciseIndex].sets[setIndex];
+				if (!this.trainingData) return;
+				
+				const exercise = this.trainingData.exercises[exerciseIndex];
+				const set = exercise.sets[setIndex];
 				set.completed = !set.completed;
 				
-				// 更新总重量
-				this.$nextTick(() => {
-					this.calculateVolume();
-				});
+				// 记录最后操作的组
+				this.activeExerciseIndex = exerciseIndex;
+				this.activeSetIndex = setIndex;
+				
+				// 如果标记为已完成
+				if (set.completed) {
+					// 记录这是刚完成的组
+					this.lastCompletedExerciseIndex = exerciseIndex;
+					this.lastCompletedSetIndex = setIndex;
+					
+					// 启动休息倒计时
+					setTimeout(() => {
+						// 只有在当前组完成时才自动开始休息
+						if (this.lastCompletedExerciseIndex === exerciseIndex && 
+							this.lastCompletedSetIndex === setIndex) {
+							// 检查是否有下一组需要训练
+							const hasNextSet = this.hasNextSet(exerciseIndex, setIndex);
+							if (hasNextSet) {
+								// 启动休息计时器
+							 
+							}
+						}
+					}, 500);
+
+					// 如果是第一个完成的组，且计时器未开始，则自动开始计时器
+					if (this.completedSets === 1 && !this.timer.isRunning) {
+						this.startTimer();
+						uni.showToast({
+							title: '计时已开始',
+							icon: 'none',
+							position: 'bottom'
+						});
+					}
+				}
+				
+				// 更新训练数据
+				TrainingService.updateActiveTraining(this.trainingData);
+			},
+			
+ 
+			// 更新下一组训练信息
+			updateNextExerciseInfo() {
+				// 获取下一组训练信息
+				const exercises = this.trainingData.exercises;
+				let nextExerciseIndex = this.activeExerciseIndex;
+				let nextSetIndex = this.activeSetIndex + 1;
+				
+				// 检查当前动作是否有更多组
+				if (nextSetIndex >= exercises[nextExerciseIndex].sets.length) {
+					nextExerciseIndex++;
+					nextSetIndex = 0;
+				}
+				
+				// 检查是否有下一个动作
+				if (nextExerciseIndex < exercises.length) {
+					const nextExercise = exercises[nextExerciseIndex];
+					const setNumber = nextSetIndex + 1;
+					this.nextExerciseInfo = `${nextExercise.name} - 第${setNumber}组`;
+				} else {
+					this.nextExerciseInfo = '训练即将结束';
+				}
+			},
+			
+			// 检查是否有下一组需要训练
+			hasNextSet(currentExerciseIndex, currentSetIndex) {
+				const exercises = this.trainingData.exercises;
+				
+				// 检查当前动作是否有更多组
+				if (currentSetIndex < exercises[currentExerciseIndex].sets.length - 1) {
+					return true;
+				}
+				
+				// 检查是否有下一个动作
+				if (currentExerciseIndex < exercises.length - 1) {
+					return true;
+				}
+				
+				// 没有下一组
+				return false;
 			},
 			
 			// 添加新的组
@@ -358,25 +631,96 @@
 			
 			// 显示组操作菜单
 			showSetMenu(exerciseIndex, setIndex) {
+				// 保存当前操作的组索引
+				this.activeExerciseIndex = exerciseIndex;
+				this.activeSetIndex = setIndex;
+				
 				// 实际中可能需要显示弹窗或操作菜单
 				uni.showActionSheet({
-					itemList: ['开始休息计时', '复制本组', '删除'],
+					itemList: ['直接进入下一组', '启动休息计时', '设置下一组参数', '复制本组', '删除'],
 					success: (res) => {
 						const index = res.tapIndex;
 						
 						switch (index) {
-							case 0: // 开始休息计时
-								uni.showToast({
-									title: '休息计时功能待实现',
-									icon: 'none'
-								});
+							case 0: // 直接进入下一组
+								// 尝试自动切换到下一组
+								this.focusNextSet();
 								break;
-							case 1: // 复制本组
+							case 1: // 启动休息计时
+								 
+								break;
+							case 2: // 设置下一组参数
+								this.showNextSetParamsDialog();
+								break;
+							case 3: // 复制本组
 								this.duplicateSet(exerciseIndex, setIndex);
 								break;
-							case 2: // 删除
+							case 4: // 删除
 								this.deleteSet(exerciseIndex, setIndex);
 								break;
+						}
+					}
+				});
+			},
+			
+			// 显示设置下一组参数的对话框
+			showNextSetParamsDialog() {
+				// 获取下一组信息
+				const exercises = this.trainingData.exercises;
+				let nextExerciseIndex = this.activeExerciseIndex;
+				let nextSetIndex = this.activeSetIndex + 1;
+				
+				// 检查当前动作是否有更多组
+				if (nextSetIndex >= exercises[nextExerciseIndex].sets.length) {
+					nextExerciseIndex++;
+					nextSetIndex = 0;
+					
+					// 检查是否有下一个动作
+					if (nextExerciseIndex >= exercises.length) {
+						uni.showToast({
+							title: '已经是最后一组',
+							icon: 'none'
+						});
+						return;
+					}
+				}
+				
+				const nextExercise = exercises[nextExerciseIndex];
+				const nextSet = nextExercise.sets[nextSetIndex];
+				
+				// 显示编辑对话框
+				uni.showModal({
+					title: `设置下一组参数 - ${nextExercise.name}`,
+					content: `第${nextSetIndex + 1}组: 重量(${nextExercise.weightUnit})=${nextSet.weight || 0}, 次数=${nextSet.reps || 0}`,
+					confirmText: '开始下一组',
+					cancelText: '取消',
+					success: (res) => {
+						if (res.confirm) {
+							// 尝试自动切换到下一组
+							this.focusNextSet();
+						}
+					}
+				});
+			},
+			
+			// 显示自定义休息时间对话框
+			showCustomRestTimeDialog() {
+				uni.showModal({
+					title: '设置休息时间',
+					content: '输入休息时间（秒）',
+					editable: true,
+					placeholderText: '60',
+					success: (res) => {
+						if (res.confirm) {
+							const seconds = parseInt(res.content);
+							if (!isNaN(seconds) && seconds > 0) {
+							 
+							} else {
+								uni.showToast({
+									title: '请输入有效的秒数',
+									icon: 'none'
+								});
+							}
 						}
 					}
 				});
@@ -512,30 +856,37 @@
 			// 完成训练
 			completeTraining() {
 				// 保存训练记录
-				this.saveTrainingRecord();
+				TrainingService.completeTraining(this.trainingData);
 				
-				// 返回上一页
-				uni.navigateBack();
+				uni.showToast({
+					title: '训练已完成',
+					icon: 'success',
+					duration: 2000,
+					success: () => {
+						// 返回上一页
+						setTimeout(() => {
+							uni.navigateBack();
+						}, 2000);
+					}
+				});
 			},
 			
 			// 保存并退出
 			saveAndExit() {
-				// 保存训练记录
-				this.saveTrainingRecord();
+				// 保存训练状态
+				TrainingService.updateActiveTraining(this.trainingData);
 				
-				// 返回上一页
-				uni.navigateBack();
-			},
-			
-			// 保存训练记录
-			saveTrainingRecord() {
-				// 在实际项目中，这里应该将数据保存到本地或发送到服务器
 				uni.showToast({
-					title: '训练记录已保存',
-					icon: 'success'
+					title: '训练已保存',
+					icon: 'success',
+					duration: 1500,
+					success: () => {
+						// 返回上一页
+						setTimeout(() => {
+							uni.navigateBack();
+						}, 1500);
+					}
 				});
-				
-				console.log('保存的训练数据:', JSON.stringify(this.trainingData));
 			},
 			
 			// 显示删除确认
@@ -545,18 +896,97 @@
 					content: '确定要删除这次训练记录吗？所有数据将丢失。',
 					success: (res) => {
 						if (res.confirm) {
-							// 在实际项目中，这里应该删除相关数据
-							uni.navigateBack();
+							// 取消当前训练
+							TrainingService.cancelActiveTraining();
+							
+							uni.showToast({
+								title: '已删除训练',
+								icon: 'success',
+								duration: 1500,
+								success: () => {
+									// 返回上一页
+									setTimeout(() => {
+										uni.navigateBack();
+									}, 1500);
+								}
+							});
 						}
 					}
 				});
 			},
-			
-			// 加载训练数据
-			loadTraining(id) {
-				// 实际项目中，这里应该从本地或服务器获取训练数据
-				console.log('加载训练ID:', id);
-			}
+
+			// 返回上一页
+			goBack() {
+				uni.navigateBack();
+			},
+
+			// 切换到下一组
+			focusNextSet() {
+				if (this.activeExerciseIndex < 0 || this.activeSetIndex < 0) return;
+				
+				const exercises = this.trainingData.exercises;
+				let nextExerciseIndex = this.activeExerciseIndex;
+				let nextSetIndex = this.activeSetIndex + 1;
+				
+				// 检查当前动作是否有更多组
+				if (nextSetIndex >= exercises[nextExerciseIndex].sets.length) {
+					nextExerciseIndex++;
+					nextSetIndex = 0;
+				}
+				
+				// 检查是否有下一个动作
+				if (nextExerciseIndex < exercises.length) {
+					// 高亮显示下一组（这里可以添加一些视觉提示）
+					this.activeExerciseIndex = nextExerciseIndex;
+					this.activeSetIndex = nextSetIndex;
+					
+					// 震动反馈
+					uni.vibrateShort();
+					
+					// 确保当前动作没有折叠
+					if (exercises[nextExerciseIndex].collapsed) {
+						exercises[nextExerciseIndex].collapsed = false;
+						
+						// 触发布局更新
+						this.$nextTick(() => {
+							// 强制重新计算布局
+							setTimeout(() => {
+								this.$forceUpdate();
+							}, 50);
+						});
+					}
+					
+					// 如果是下一个动作的第一组，显示提示
+					if (nextSetIndex === 0 && nextExerciseIndex > 0) {
+						uni.showToast({
+							title: `开始 ${exercises[nextExerciseIndex].name}`,
+							icon: 'none',
+							duration: 1500
+						});
+					}
+					
+					// 可以添加滚动到下一组的逻辑
+					this.$nextTick(() => {
+						setTimeout(() => {
+							// 尝试滚动到当前元素
+							const dom = uni.requireNativePlugin('dom');
+							if (dom && dom.scrollToElement) {
+								try {
+									// 尝试滚动到当前元素
+									const el = this.$refs[`exercise-${nextExerciseIndex}`];
+									if (el) {
+										dom.scrollToElement(el, { offset: -50 });
+									}
+								} catch (e) {
+									console.log('滚动到下一组失败', e);
+								}
+							}
+						}, 300);
+					});
+				}
+			},
+
+  
 		}
 	}
 </script>
@@ -566,6 +996,42 @@
 		flex: 1;
 		background-color: #f5f5f5;
 		position: relative;
+	}
+	
+	/* 加载状态和错误样式 */
+	.loading-container, .error-container {
+		flex: 1;
+		justify-content: center;
+		align-items: center;
+		padding: 60rpx;
+	}
+	
+	.loading-text {
+		font-size: 32rpx;
+		color: #666666;
+	}
+	
+	.error-container {
+		flex-direction: column;
+	}
+	
+	.error-text {
+		font-size: 32rpx;
+		color: #ff3b30;
+		margin-bottom: 40rpx;
+		text-align: center;
+	}
+	
+	.error-button {
+		background-color: #0A84FF;
+		padding: 20rpx 60rpx;
+		border-radius: 12rpx;
+		align-items: center;
+	}
+	
+	.error-button-text {
+		color: white;
+		font-size: 32rpx;
 	}
 	
 	/* 头部样式 */
@@ -583,10 +1049,33 @@
 		flex: 1;
 	}
 	
+	.timer-container {
+		flex-direction: row;
+		align-items: center;
+		margin-bottom: 6rpx;
+	}
+	
 	.timer {
 		font-size: 56rpx;
 		font-weight: bold;
-		margin-bottom: 6rpx;
+		color: #333333;
+	}
+	
+	.timer-control-button {
+		background-color: #0A84FF;
+		padding: 10rpx 20rpx;
+		border-radius: 12rpx;
+		margin-left: 16rpx;
+	}
+	
+	.timer-control-button.pause {
+		background-color: #ff3b30;
+	}
+	
+	.timer-button-text {
+		color: white;
+		font-size: 28rpx;
+		font-weight: bold;
 	}
 	
 	.training-name {
@@ -633,14 +1122,18 @@
 	}
 	
 	.stats-text {
-		font-size: 28rpx;
-		color: #666666;
+		display:flex;
+		 
+		display: flex;
+		flex-direction: row;
+
 		margin-bottom: 4rpx;
 		text-align: right;
 	}
 	
 	.stats-highlight {
-		color: #333333;
+		font-size: 28rpx;
+		color: #666666;
 		font-weight: bold;
 	}
 	
@@ -657,6 +1150,17 @@
 		margin-bottom: 30rpx;
 		padding: 24rpx 20rpx;
 		box-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.05);
+		overflow: hidden; /* 确保内容溢出不影响外部布局 */
+		transition-property: all;
+		transition-duration: 0.3s;
+		transition-timing-function: ease-out;
+	}
+	
+	.exercise-card.collapsed {
+		padding-bottom: 12rpx; /* 收起时减小底部内边距 */
+		margin-bottom: 15rpx; /* 收起时减小底部外边距 */
+		/* 设定最小高度避免完全消失 */
+		min-height: 100rpx;
 	}
 	
 	/* 运动标题 */
@@ -666,6 +1170,10 @@
 		align-items: center;
 		margin-bottom: 20rpx;
 		padding: 0 10rpx;
+	}
+	
+	.exercise-card.collapsed .exercise-header {
+		margin-bottom: 0; /* 折叠状态下移除标题下方的间距 */
 	}
 	
 	.exercise-name-wrapper {
@@ -682,29 +1190,44 @@
 		flex-direction: row;
 		align-items: center;
 		margin-top: 10rpx;
-		display: none;
+		opacity: 0;
+		height: 0;
+		transition-property: all;
+		transition-duration: 0.3s;
+		padding: 0 10rpx;
+		width: 100%;
+		flex-wrap: wrap;
 	}
 	
 	.exercise-card.collapsed .exercise-progress {
-		display: flex;
+		opacity: 1;
+		height: auto;
+		margin-top: 8rpx;
+		margin-bottom: 5rpx;
 	}
 	
 	.exercise-sets-count {
-		font-size: 28rpx;
+		font-size: 26rpx;
 		color: #666666;
 		margin-right: 16rpx;
 	}
 	
 	.exercise-dots {
 		flex-direction: row;
+		flex-wrap: wrap;
+		margin-top: 3rpx;
+		flex: 1;
 	}
 	
 	.dot {
-		width: 16rpx;
-		height: 16rpx;
-		border-radius: 8rpx;
+		width: 18rpx;
+		height: 18rpx;
+		border-radius: 9rpx;
 		background-color: #dddddd;
-		margin-right: 4rpx;
+		margin-right: 10rpx;
+		margin-bottom: 6rpx;
+		transition-property: background-color;
+		transition-duration: 0.2s;
 	}
 	
 	.dot.completed {
@@ -731,14 +1254,21 @@
 	
 	/* 可折叠内容 */
 	.collapsible-content {
-		max-height: 2000rpx;
+		height: auto;
+		opacity: 1;
 		overflow: hidden;
-		transition-property: max-height;
-		transition-duration: 0.3s;
+		transition-property: all;
+		transition-duration: 0.25s;
+		flex: 1;
 	}
 	
 	.exercise-card.collapsed .collapsible-content {
-		max-height: 0rpx;
+		max-height: 0 !important; /* 使用max-height代替height */
+		height: 0 !important;
+		opacity: 0;
+		padding: 0; /* 移除内边距 */
+		margin: 0; /* 移除外边距 */
+		border-width: 0; /* 移除边框 */
 	}
 	
 	/* 组列表样式 */
@@ -919,7 +1449,7 @@
 		box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.1);
 		z-index: 100;
 		height: 130rpx;
-		padding-bottom: env(safe-area-inset-bottom);
+		padding-bottom: 34rpx; /* 替换env(safe-area-inset-bottom)为固定值 */
 	}
 	
 	.bottom-nav-btn {
@@ -1000,5 +1530,22 @@
 		justify-content: center;
 		background-color: rgba(0,0,0,0.03);
 		border-radius: 8rpx;
+	}
+
+	/* 休息计时器包装器 */
+	.rest-timer-wrapper {
+		width: 700rpx;
+		margin: 10rpx 25rpx;
+		height: 0;
+		opacity: 0;
+		overflow: hidden;
+		transition-property: height, opacity;
+		transition-duration: 0.3s;
+	}
+
+	.rest-timer-wrapper.visible {
+		height: 80rpx;
+		opacity: 1;
+		margin-bottom: 20rpx;
 	}
 </style> 

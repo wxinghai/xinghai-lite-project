@@ -8,20 +8,20 @@
 		<!-- 训练卡片 -->
 		<view class="training-card">
 			<view class="training-info">
-				<text class="training-title">70%腿训</text>
+				<text class="training-title">{{ todayTraining.title }}</text>
 				<view class="training-meta">
-					<text class="training-meta-item">个人模版</text>
+					<text class="training-meta-item">{{ todayTraining.type === 0 ? '官方计划' : '个人模版' }}</text>
 					<view class="training-meta-item-group">
 						<text class="training-meta-icon">动作</text>
-						<text class="training-meta-value">3</text>
+						<text class="training-meta-value">{{ todayTraining.exercises ? todayTraining.exercises.length : 0 }}</text>
 					</view>
 					<view class="training-meta-item-group">
 						<text class="training-meta-icon">组数</text>
-						<text class="training-meta-value">16</text>
+						<text class="training-meta-value">{{ getTotalSets(todayTraining) }}</text>
 					</view>
 				</view>
 			</view>
-			<view class="go-button" @click="startTraining">
+			<view class="go-button" @click="startTraining(todayTraining)">
 				<text class="go-text">GO!</text>
 			</view>
 		</view>
@@ -50,29 +50,57 @@
 		
 		<!-- 训练计划卡片 -->
 		<list class="plan-list" show-scrollbar="false" alwaysScrollableVertical="true">
-			<cell v-for="(plan, index) in filteredPlans" :key="index">
-				<view class="plan-card" @click="viewPlan(plan)">
-					<image class="plan-image" :src="plan.image || '/static/default-plan.png'" resize="cover"></image>
-					<view class="plan-content">
-						<text class="plan-title">{{ plan.title }}</text>
-						<text class="plan-desc">{{ plan.description }}</text>
+			<!-- 加载中提示 -->
+			<cell v-if="loading">
+				<view class="loading-container">
+					<text class="loading-text">加载中...</text>
+				</view>
+			</cell>
+			
+			<!-- 错误提示 -->
+			<cell v-else-if="error">
+				<view class="error-container">
+					<text class="error-text">{{ error }}</text>
+					<view class="error-button" @click="fetchTrainingPlans">
+						<text class="error-button-text">重试</text>
 					</view>
 				</view>
 			</cell>
 			
-			<cell v-if="showOldPlans">
-				<view class="section-title">
-					<text class="section-text">旧的减脂计划</text>
-				</view>
-			</cell>
-			
-			<cell v-for="(plan, index) in oldPlans" :key="'old-'+index" v-if="showOldPlans">
-				<view class="plan-card" @click="viewPlan(plan)">
+			<!-- 训练计划列表 -->
+			<cell v-else v-for="(plan, index) in filteredPlans" :key="index">
+				<view class="plan-card">
 					<image class="plan-image" :src="plan.image || '/static/default-plan.png'" resize="cover"></image>
 					<view class="plan-content">
 						<text class="plan-title">{{ plan.title }}</text>
 						<text class="plan-desc">{{ plan.description }}</text>
+						<view class="plan-footer">
+							<view class="plan-stats">
+								<view class="plan-stats-item">
+									<text class="plan-stats-label">动作</text>
+									<text class="plan-stats-value">{{ plan.exercises ? plan.exercises.length : 0 }}</text>
+								</view>
+								<view class="plan-stats-item">
+									<text class="plan-stats-label">组数</text>
+									<text class="plan-stats-value">{{ getTotalSets(plan) }}</text>
+								</view>
+								<view class="plan-stats-item">
+									<text class="plan-stats-label">预计</text>
+									<text class="plan-stats-value">{{ plan.estimatedTime || '--' }}分钟</text>
+								</view>
+							</view>
+							<view class="plan-start-button" @click.stop="startTraining(plan)">
+								<text class="plan-start-text">开始</text>
+							</view>
+						</view>
 					</view>
+				</view>
+			</cell>
+			
+			<!-- 没有数据时的提示 -->
+			<cell v-if="!loading && !error && filteredPlans.length === 0">
+				<view class="empty-container">
+					<text class="empty-text">暂无训练计划</text>
 				</view>
 			</cell>
 		</list>
@@ -80,6 +108,8 @@
 </template>
 
 <script>
+	import TrainingService from '../../utils/services/TrainingService.js';
+	
 	export default {
 		data() {
 			return {
@@ -87,88 +117,46 @@
 				activeTag: 0,
 				showOldPlans: true,
 				tags: ['减脂塑形', '部位专攻', '增肌·男', '增肌·女', '力量举', '旧计划'],
-				plans: [
-					{
-						title: '男生减脂塑形捷径',
-						description: '解决肚子大、肌肉小、没有型！',
-						image: '',
-						type: 0, // 官方计划
-						tag: 0, // 减脂塑形
-					},
-					{
-						title: '女生减脂塑形捷径',
-						description: '灭绝腰粗、腿粗副乳、塌扁平臀！',
-						image: '',
-						type: 0,
-						tag: 0,
-					},
-					{
-						title: '肩膀胸背塑形',
-						description: '一个月发现明显效果，肩膀更宽！',
-						image: '',
-						type: 0,
-						tag: 1, // 部位专攻
-					},
-					{
-						title: '腹肌专攻特训',
-						description: '系统高效，腹肌成型必备',
-						image: '',
-						type: 0,
-						tag: 1,
-					},
-					{
-						title: '男生增肌训练',
-						description: '高效增肌，避免困扰，实现目标',
-						image: '',
-						type: 0,
-						tag: 2, // 增肌·男
-					},
-					{
-						title: '女生腹背臀增肌',
-						description: '高效曲线塑造，增强体能！',
-						image: '',
-						type: 0,
-						tag: 3, // 增肌·女
-					},
-					{
-						title: '卧推突破训练营',
-						description: '专注卧推突破的详细进阶',
-						image: '',
-						type: 0,
-						tag: 4, // 力量举
-					},
-					{
-						title: '硬拉速提升',
-						description: '4周提高硬拉的针对训练',
-						image: '',
-						type: 0,
-						tag: 4,
-					},
-				],
-				oldPlans: [
-					{
-						title: '旧版减脂训练',
-						description: '旧版减脂训练课表（已不再维护）',
-						image: '',
-						type: 0,
-						tag: 5, // 旧计划
-					}
-				]
+				trainingPlans: [],
+				loading: true,
+				error: null,
+				todayTraining: {} // 新增：用于存储今日训练计划
 			}
 		},
-		
+		onLoad() {
+			// 初始化训练服务
+			TrainingService.init();
+			
+			// 获取训练计划列表
+			this.fetchTrainingPlans();
+			this.fetchTodayTraining(); // 获取今日训练计划
+		},
 		computed: {
 			filteredPlans() {
-				// 根据当前选择的标签过滤计划
-				if (this.activeTab === 0) { // 官方计划
-					return this.plans.filter(plan => 
-						plan.type === 0 && plan.tag === this.activeTag && plan.tag !== 5
-					);
-				} else if (this.activeTab === 1) { // 个人模版
-					return [];
-				} else { // 个人计划(Beta)
+				// 根据当前选择的标签和类型过滤计划
+				if (!this.trainingPlans || this.trainingPlans.length === 0) {
 					return [];
 				}
+				
+				// 根据当前选择的类型和标签过滤
+				return this.trainingPlans.filter(plan => {
+					// 先按类型过滤
+					if (this.activeTab === 0 && plan.type !== 0) return false; // 官方计划
+					if (this.activeTab === 1 && plan.type !== 1) return false; // 个人模版
+					if (this.activeTab === 2 && plan.type !== 2) return false; // 个人计划
+					
+					// 再按标签过滤
+					if (this.activeTab === 0) { // 官方计划
+						// 特殊处理旧计划标签
+						if (this.activeTag === 5) {
+							return plan.isOld === true;
+						} else {
+							return plan.tag === this.activeTag && (plan.isOld !== true);
+						}
+					}
+					
+					return true;
+				});
 			}
 		},
 		
@@ -189,10 +177,59 @@
 				console.log('查看计划: ', plan.title);
 			},
 			
+			// 获取训练计划列表
+			fetchTrainingPlans() {
+				try {
+					this.loading = true;
+					this.trainingPlans = TrainingService.getTrainingPlans();
+					this.loading = false;
+				} catch (err) {
+					this.error = '获取训练计划失败';
+					this.loading = false;
+					console.error('获取训练计划出错:', err);
+				}
+			},
+
+			// 获取今日训练计划
+			fetchTodayTraining() {
+				try {
+					this.todayTraining = TrainingService.getTodayTrainingPlan();
+				} catch (err) {
+					console.error('获取今日训练计划出错:', err);
+				}
+			},
+
+			// 计算总组数
+			getTotalSets(plan) {
+				if (!plan || !plan.exercises) return 0;
+				
+				let totalSets = 0;
+				plan.exercises.forEach(exercise => {
+					if (exercise.sets && Array.isArray(exercise.sets)) {
+						totalSets += exercise.sets.length;
+					}
+				});
+				return totalSets;
+			},
+			
 			// 开始训练
 			startTraining(trainingItem) {
+				// 获取完整的训练计划
+				const trainingPlan = TrainingService.getTrainingPlanById(trainingItem.id);
+				if (!trainingPlan) {
+					uni.showToast({
+						title: '训练计划不存在',
+						icon: 'none'
+					});
+					return;
+				}
+				
+				// 开始训练，创建训练会话
+				const trainingSession = TrainingService.startTraining(trainingPlan);
+				
+				// 跳转到训练会话页面
 				uni.navigateTo({
-					url: '/pages/training-session/training-session'
+					url: `/pages/training-session/training-session?id=${trainingSession.id}`
 				});
 			}
 		}
@@ -370,6 +407,45 @@
 		color: #999;
 	}
 	
+	.plan-footer {
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+		margin-top: 20rpx;
+	}
+	
+	.plan-stats {
+		flex-direction: row;
+		align-items: center;
+	}
+	
+	.plan-stats-item {
+		margin-right: 30rpx;
+	}
+	
+	.plan-stats-label {
+		color: #999;
+		font-size: 28rpx;
+	}
+	
+	.plan-stats-value {
+		color: #333;
+		font-size: 28rpx;
+		font-weight: bold;
+	}
+	
+	.plan-start-button {
+		background-color: #0A84FF;
+		padding: 16rpx 30rpx;
+		border-radius: 40rpx;
+	}
+	
+	.plan-start-text {
+		color: #ffffff;
+		font-size: 32rpx;
+		font-weight: bold;
+	}
+	
 	.section-title {
 		align-items: center;
 		padding: 40rpx 0;
@@ -386,5 +462,48 @@
 		justify-content: space-between;
 		align-items: center;
 		padding: 20rpx 30rpx;
+	}
+
+	.loading-container {
+		align-items: center;
+		padding: 40rpx 0;
+	}
+	
+	.loading-text {
+		font-size: 28rpx;
+		color: #999;
+	}
+	
+	.error-container {
+		align-items: center;
+		padding: 40rpx 0;
+	}
+	
+	.error-text {
+		font-size: 28rpx;
+		color: #999;
+		margin-bottom: 20rpx;
+	}
+	
+	.error-button {
+		background-color: #0A84FF;
+		padding: 16rpx 30rpx;
+		border-radius: 40rpx;
+	}
+	
+	.error-button-text {
+		color: #ffffff;
+		font-size: 32rpx;
+		font-weight: bold;
+	}
+	
+	.empty-container {
+		align-items: center;
+		padding: 40rpx 0;
+	}
+	
+	.empty-text {
+		font-size: 28rpx;
+		color: #999;
 	}
 </style> 

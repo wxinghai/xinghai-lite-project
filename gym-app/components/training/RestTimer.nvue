@@ -1,0 +1,216 @@
+<template>
+  <view class="rest-timer-container">
+    <view class="timer-box">
+      <text class="timer-value">{{ formattedTime }}</text>
+    </view>
+
+    <view class="controls">
+      <view class="btn" @click="addTime">
+        <text class="btn-text">加时</text>
+      </view>
+      <view class="btn btn-warn" @click="subtractTime">
+        <text class="btn-text">减时</text>
+      </view>
+      <view class="btn btn-finish" @click="finishNow">
+        <text class="btn-text btn-text-finish">完成</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script>
+  export default {
+    // 休息计时器：自动开始；仅保留加时/减时/完成三个按钮
+    props: {
+      // 初始倒计时时长（秒）
+      duration: { type: Number, default: 60 },
+      // 调整步进（秒）
+      stepSeconds: { type: Number, default: 10 },
+      // 自动开始
+      autoStart: { type: Boolean, default: true }
+    },
+    data() {
+      return {
+        // 剩余秒数
+        remainingSeconds: this.duration,
+        // 是否正在计时
+        isRunning: false,
+        // 计时器ID
+        timerId: null,
+        // 启动时间戳（ms）
+        startTimestampMs: 0
+      }
+    },
+    computed: {
+      // 将秒格式化为 mm:ss
+      formattedTime() {
+        const total = this.remainingSeconds >= 0 ? this.remainingSeconds : 0
+        const minutes = Math.floor(total / 60)
+        const seconds = total % 60
+        const mm = minutes < 10 ? '0' + minutes : '' + minutes
+        const ss = seconds < 10 ? '0' + seconds : '' + seconds
+        return mm + ':' + ss
+      }
+    },
+    watch: {
+      // 外部修改duration时，若未运行则同步剩余时间
+      duration(newVal) {
+        if (!this.isRunning) {
+          this.remainingSeconds = newVal
+        }
+      }
+    },
+    mounted() {
+      if (this.autoStart) {
+        this.start()
+      }
+    },
+    beforeDestroy() {
+      this.clearTimer()
+    },
+    methods: {
+      // 内部：开始计时
+      start() {
+        if (this.isRunning || this.remainingSeconds <= 0) return
+        this.isRunning = true
+        this.startTimestampMs = Date.now()
+        this.$emit('start')
+        this.timerId = setInterval(() => {
+          if (this.remainingSeconds <= 1) {
+            this.remainingSeconds = 0
+            this.$emit('tick', this.remainingSeconds)
+            this.complete()
+          } else {
+            this.remainingSeconds -= 1
+            this.$emit('tick', this.remainingSeconds)
+          }
+        }, 1000)
+      },
+      // 加时（增加剩余秒数）
+      addTime() {
+        this.remainingSeconds += this.stepSeconds
+      },
+      // 减时（减少剩余秒数；若<=0则立即完成）
+      subtractTime() {
+        this.remainingSeconds -= this.stepSeconds
+        if (this.remainingSeconds <= 0) {
+          this.remainingSeconds = 0
+          this.complete()
+        }
+      },
+      // 点击完成（立即结束，返回已休息时长）
+      finishNow() {
+        this.complete()
+      },
+      // 完成逻辑（统一出口）
+      complete() {
+        this.clearTimer()
+        this.isRunning = false
+        const elapsed = this.computeElapsedSeconds()
+        this.onCompleteFeedback()
+        this.$emit('finish', elapsed)
+      },
+      // 计算已休息时长（秒）：从开始时间到当前时间
+      computeElapsedSeconds() {
+        if (!this.startTimestampMs) return 0
+        const elapsedMs = Date.now() - this.startTimestampMs
+        return elapsedMs > 0 ? Math.floor(elapsedMs / 1000) : 0
+      },
+      // 清除定时器
+      clearTimer() {
+        if (this.timerId) {
+          clearInterval(this.timerId)
+          this.timerId = null
+        }
+      },
+      // 完成反馈：震动 + 提示音 + 轻提示
+      onCompleteFeedback() {
+        // 震动（App端）
+        if (typeof uni !== 'undefined' && uni.vibrateShort) {
+          try { uni.vibrateShort({}) } catch (e) {}
+        }
+        // 提示音
+        this.playCompleteSound()
+        // 轻提示
+        if (typeof uni !== 'undefined' && uni.showToast) {
+          try { uni.showToast({ title: '休息结束', icon: 'none', duration: 1200 }) } catch (e) {}
+        }
+      },
+      // 播放完成提示音（失败则忽略）
+      playCompleteSound() {
+        try {
+          if (typeof uni === 'undefined' || !uni.createInnerAudioContext) return
+          const audio = uni.createInnerAudioContext()
+          audio.autoplay = true
+          audio.src = '/static/sounds/timer-complete.mp3'
+          audio.onEnded(() => { try { audio.destroy() } catch (e) {} })
+          audio.onError(() => { try { audio.destroy() } catch (e) {} })
+        } catch (e) {
+          // 忽略音频错误
+        }
+      }
+    }
+  }
+</script>
+
+<style>
+  .rest-timer-container {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 400rpx;
+    height: 88rpx;
+    padding-left: 24rpx;
+    padding-right: 24rpx;
+    background-color: #000000;
+    border-radius: 8rpx; /* 避免过多圆角，兼顾性能 */
+  }
+
+  .timer-box {
+    flex-direction: row;
+    align-items: center;
+	width: 100rpx;
+  }
+
+  .timer-value {
+    font-size: 34rpx;
+    color: #ffffff;
+  }
+
+  .controls {
+    flex-direction: row;
+    align-items: center;
+	justify-content: space-between;
+	width: 250rpx;
+ 
+	
+  }
+
+  .btn {
+    flex-direction: row;
+    align-items: center;
+    justify-content:center;
+    height: 56rpx;
+    width: 60rpx;
+	padding: 10rpx;
+    border: 1rpx solid #4CAF50 ; /* 主色 */
+    border-radius: 6rpx;
+  }
+
+  .btn-text {
+    font-size: 26rpx;
+    color: #4CAF50;
+  }
+
+  .btn-warn {
+    border-color: #FF9800;
+  }
+
+  .btn-finish {
+    border-color: #FF5722; /* 强调色 */
+  }
+
+  .btn-text-finish {
+    color: #FF5722;
+  }
+</style> 
