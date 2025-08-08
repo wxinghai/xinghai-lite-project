@@ -50,7 +50,7 @@
 				</view>
 			</view>
 			<!-- 运动列表 -->
-			<list class="exercise-list" show-scrollbar="false">
+			<list class="exercise-list" showScrollbar="true">
 				<cell v-for="(exercise, exerciseIndex) in trainingData.exercises" :key="exercise.id">
 					<view 
 						class="exercise-card" 
@@ -61,6 +61,18 @@
 						<view class="exercise-header" @click="toggleExerciseCollapse(exerciseIndex)">
 							<view class="exercise-name-wrapper">
 								<text class="exercise-name">{{ exercise.name }}</text>
+								<!-- 折叠状态下显示进度 -->
+								<view class="exercise-progress" v-if="exercise.collapsed">
+									<text class="exercise-sets-count">{{ exercise.sets.length }}组</text>
+									<view class="exercise-dots">
+										<view 
+											v-for="(set, dotIndex) in exercise.sets" 
+											:key="'dot-'+dotIndex" 
+											class="dot"
+											:class="{ 'completed': set.completed }"
+										></view>
+									</view>
+								</view>
 							</view>
 							
 							<view class="exercise-actions">
@@ -73,18 +85,7 @@
 							</view>
 						</view>
 						
-						<!-- 折叠状态下显示进度 -->
-						<view class="exercise-progress" v-if="exercise.collapsed">
-							<text class="exercise-sets-count">{{ exercise.sets.length }}组</text>
-							<view class="exercise-dots">
-								<view 
-									v-for="(set, dotIndex) in exercise.sets" 
-									:key="'dot-'+dotIndex" 
-									class="dot"
-									:class="{ 'completed': set.completed }"
-								></view>
-							</view>
-						</view>
+					
 						
 						<!-- 运动详情内容 -->
 						<view class="collapsible-content">
@@ -306,7 +307,11 @@
 						this.startTimer();
 					}
 				} else {
-					this.error = '未找到训练会话';
+					// 如果没有活动的训练会话，则使用默认训练内容
+					const defaultTraining = TrainingService.getDefaultTraining();
+					this.trainingData = TrainingService.startTraining(defaultTraining);
+					this.timer.startTime = this.trainingData.startTime;
+					this.timer.currentTime = this.trainingData.startTime;
 					this.loading = false;
 				}
 			}
@@ -357,7 +362,7 @@
 						if (activeTraining.timerRunning) {
 							this.startTimer();
 						}
-					} else {
+					} else if (id && id.startsWith('session_')) {
 						// 查找训练计划
 						const trainingPlanId = id.replace('session_', 'plan_');
 						const trainingPlan = TrainingService.getTrainingPlanById(trainingPlanId);
@@ -366,12 +371,22 @@
 							// 开始新训练
 							this.trainingData = TrainingService.startTraining(trainingPlan);
 							this.timer.startTime = this.trainingData.startTime;
-							this.timer.currentTime = this.timer.startTime;
+							this.timer.currentTime = this.trainingData.startTime;
 							
 							// 不自动启动计时器
 						} else {
-							this.error = '训练计划不存在';
+							// 使用默认训练
+							const defaultTraining = TrainingService.getDefaultTraining();
+							this.trainingData = TrainingService.startTraining(defaultTraining);
+							this.timer.startTime = this.trainingData.startTime;
+							this.timer.currentTime = this.trainingData.startTime;
 						}
+					} else {
+						// 使用默认训练
+						const defaultTraining = TrainingService.getDefaultTraining();
+						this.trainingData = TrainingService.startTraining(defaultTraining);
+						this.timer.startTime = this.trainingData.startTime;
+						this.timer.currentTime = this.trainingData.startTime;
 					}
 					
 					// 初始计算总重量
@@ -987,6 +1002,13 @@
 			},
 
   
+			// 清除弹窗
+			clearPopups() {
+				// TODO: 清除所有弹窗
+				this.showWeightDialog = false;
+				this.showRepsDialog = false;
+				this.showRestDialog = false;
+			}
 		}
 	}
 </script>
@@ -1140,6 +1162,7 @@
 	/* 运动列表 */
 	.exercise-list {
 		flex: 1;
+		height: 1000rpx;
 		padding: 20rpx;
 	}
 	
@@ -1148,10 +1171,8 @@
 		background-color: #ffffff;
 		border-radius: 20rpx;
 		margin-bottom: 30rpx;
-		padding: 24rpx 20rpx;
-		box-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.05);
-		overflow: hidden; /* 确保内容溢出不影响外部布局 */
-		transition-property: all;
+		overflow: hidden;  
+		padding: 20rpx;
 		transition-duration: 0.3s;
 		transition-timing-function: ease-out;
 	}
@@ -1159,8 +1180,8 @@
 	.exercise-card.collapsed {
 		padding-bottom: 12rpx; /* 收起时减小底部内边距 */
 		margin-bottom: 15rpx; /* 收起时减小底部外边距 */
-		/* 设定最小高度避免完全消失 */
-		min-height: 100rpx;
+		/* 设定固定高度避免完全消失 */
+		/* height: 100rpx; */
 	}
 	
 	/* 运动标题 */
@@ -1178,6 +1199,7 @@
 	
 	.exercise-name-wrapper {
 		flex: 1;
+		 
 	}
 	
 	.exercise-name {
@@ -1189,22 +1211,16 @@
 	.exercise-progress {
 		flex-direction: row;
 		align-items: center;
-		margin-top: 10rpx;
-		opacity: 0;
-		height: 0;
-		transition-property: all;
-		transition-duration: 0.3s;
+		margin-top: 5rpx;
+		opacity: 1;
+		height: 40rpx;
 		padding: 0 10rpx;
 		width: 100%;
 		flex-wrap: wrap;
+		display: flex;
 	}
 	
-	.exercise-card.collapsed .exercise-progress {
-		opacity: 1;
-		height: auto;
-		margin-top: 8rpx;
-		margin-bottom: 5rpx;
-	}
+	/* NVue不支持:not选择器和display:none，已通过v-if实现 */
 	
 	.exercise-sets-count {
 		font-size: 26rpx;
@@ -1254,17 +1270,15 @@
 	
 	/* 可折叠内容 */
 	.collapsible-content {
-		height: auto;
+		height: 800rpx; /* NVue不支持auto，使用一个足够大的固定高度 */
 		opacity: 1;
 		overflow: hidden;
-		transition-property: all;
 		transition-duration: 0.25s;
 		flex: 1;
 	}
 	
 	.exercise-card.collapsed .collapsible-content {
-		max-height: 0 !important; /* 使用max-height代替height */
-		height: 0 !important;
+		height: 0; /* 使用固定高度 */
 		opacity: 0;
 		padding: 0; /* 移除内边距 */
 		margin: 0; /* 移除外边距 */
@@ -1548,4 +1562,17 @@
 		opacity: 1;
 		margin-bottom: 20rpx;
 	}
+	
+	/* 无数据时 */
+	.no-data {
+		align-items: center;
+		padding: 100rpx 0;
+	}
+	
+	.no-data-text {
+		font-size: 32rpx;
+		color: #999999;
+	}
+	
+
 </style> 

@@ -99,8 +99,8 @@
 			
 			<!-- 没有数据时的提示 -->
 			<cell v-if="!loading && !error && filteredPlans.length === 0">
-				<view class="empty-container">
-					<text class="empty-text">暂无训练计划</text>
+				<view class="no-data">
+					<text class="no-data-text">没有找到训练计划</text>
 				</view>
 			</cell>
 		</list>

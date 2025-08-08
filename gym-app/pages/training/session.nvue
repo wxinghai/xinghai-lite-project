@@ -1,0 +1,350 @@
+<template>
+  <view class="container" render-whole="true">
+    <!-- 顶部导航 -->
+    <view class="header">
+      <view class="left-btn" @click="minimizeTraining">
+        <text class="icon">▼</text>
+      </view>
+      <view class="title">
+        <text class="title-text">训练会话</text>
+      </view>
+      <view class="right-btn" @click="showFinishDialog">
+        <text class="finish-btn">完成</text>
+      </view>
+    </view>
+    
+    <!-- 计时器显示 -->
+    <view class="timer-section">
+      <text class="timer-label">训练时间</text>
+      <text class="timer-display">{{formattedTime}}</text>
+      <view class="timer-controls">
+        <view class="control-btn" @click="pauseResumeTraining">
+          <text class="control-text">{{isRunning ? '暂停' : '继续'}}</text>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 训练内容区域 -->
+    <view class="training-content">
+      <text class="section-title">当前训练</text>
+      <view class="exercise-list">
+        <view class="exercise-item" v-for="(item, index) in exercises" :key="index">
+          <text class="exercise-name">{{item.name}}</text>
+          <text class="exercise-sets">{{item.sets}} 组 x {{item.reps}} 次</text>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 结束训练对话框 -->
+    <view class="dialog" v-if="showDialog">
+      <view class="dialog-content">
+        <text class="dialog-title">结束训练</text>
+        <text class="dialog-message">是否结束当前训练会话？</text>
+        <view class="dialog-buttons">
+          <view class="dialog-btn cancel" @click="cancelFinish">
+            <text class="btn-text">取消</text>
+          </view>
+          <view class="dialog-btn confirm" @click="finishTraining">
+            <text class="btn-text">确认</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      time: 0,
+      isRunning: false,
+      showDialog: false,
+      exercises: [
+        { name: '深蹲', sets: 3, reps: 12 },
+        { name: '卧推', sets: 3, reps: 10 },
+        { name: '引体向上', sets: 3, reps: 8 }
+      ]
+    }
+  },
+  computed: {
+    formattedTime() {
+      const hours = Math.floor(this.time / 3600).toString().padStart(2, '0')
+      const minutes = Math.floor((this.time % 3600) / 60).toString().padStart(2, '0')
+      const seconds = Math.floor(this.time % 60).toString().padStart(2, '0')
+      return `${hours}:${minutes}:${seconds}`
+    }
+  },
+  onLoad() {
+    // 检查是否有保存的训练时间
+    const savedTime = uni.getStorageSync('training_time')
+    if (savedTime) {
+      this.time = savedTime
+    }
+    
+    // 监听计时器更新
+    uni.$on('timerUpdate', this.handleTimerUpdate)
+    
+    // 监听返回时间
+    uni.$on('returnTime', (time) => {
+      this.time = time
+    })
+    
+    // 获取当前计时器时间
+    uni.$emit('getTime')
+    
+    // 启动计时器
+    this.startTraining()
+  },
+  onUnload() {
+    // 取消事件监听
+    uni.$off('timerUpdate')
+    uni.$off('returnTime')
+  },
+  onBackPress() {
+    // 拦截返回键，改为最小化
+    this.minimizeTraining()
+    return true // 返回true拦截默认返回行为
+  },
+  methods: {
+    startTraining() {
+      this.isRunning = true
+      // 显示悬浮窗
+      const trainingTimer = uni.getSubNVueById('trainingTimerFloat')
+      trainingTimer.show()
+      // 启动计时器
+      uni.$emit('startTimer')
+    },
+    
+    pauseResumeTraining() {
+      if (this.isRunning) {
+        this.isRunning = false
+        uni.$emit('pauseTimer')
+      } else {
+        this.isRunning = true
+        uni.$emit('startTimer')
+      }
+    },
+    
+    handleTimerUpdate(time) {
+      this.time = time
+    },
+    
+    minimizeTraining() {
+      // 使用路由回到首页或上一页
+      uni.navigateBack({
+        delta: 1
+      })
+    },
+    
+    showFinishDialog() {
+      this.showDialog = true
+    },
+    
+    cancelFinish() {
+      this.showDialog = false
+    },
+    
+    finishTraining() {
+      // 重置计时器
+      uni.$emit('resetTimer')
+      
+      // 隐藏悬浮窗
+      const trainingTimer = uni.getSubNVueById('trainingTimerFloat')
+      trainingTimer.hide()
+      
+      this.showDialog = false
+      
+      // 返回上一页
+      uni.navigateBack({
+        delta: 1
+      })
+    }
+  }
+}
+</script>
+
+<style>
+.container {
+  flex: 1;
+  flex-direction: column;
+  background-color: #f5f5f5;
+}
+
+.header {
+  height: 90px;
+  padding-top: 44px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #ffffff;
+  padding-left: 15px;
+  padding-right: 15px;
+}
+
+.left-btn, .right-btn {
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon {
+  font-size: 20px;
+  color: #007AFF;
+}
+
+.title {
+  flex: 1;
+  align-items: center;
+}
+
+.title-text {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+}
+
+.finish-btn {
+  color: #007AFF;
+  font-size: 16px;
+}
+
+.timer-section {
+  padding: 30px;
+  align-items: center;
+  background-color: #ffffff;
+  margin-top: 10px;
+}
+
+.timer-label {
+  font-size: 16px;
+  color: #666;
+  margin-bottom: 10px;
+}
+
+.timer-display {
+  font-size: 48px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.timer-controls {
+  flex-direction: row;
+  justify-content: center;
+}
+
+.control-btn {
+  width: 120px;
+  height: 44px;
+  border-radius: 22px;
+  background-color: #007AFF;
+  align-items: center;
+  justify-content: center;
+  margin: 0 10px;
+}
+
+.control-text {
+  color: #FFFFFF;
+  font-size: 16px;
+}
+
+.training-content {
+  margin-top: 10px;
+  background-color: #FFFFFF;
+  padding: 20px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.exercise-item {
+  flex-direction: row;
+  justify-content: space-between;
+  padding: 15px 0;
+  border-bottom-width: 1px;
+  border-bottom-color: #EEEEEE;
+}
+
+.exercise-name {
+  font-size: 16px;
+  color: #333;
+}
+
+.exercise-sets {
+  font-size: 14px;
+  color: #666;
+}
+
+.dialog {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  align-items: center;
+  justify-content: center;
+}
+
+.dialog-content {
+  width: 280px;
+  background-color: #FFFFFF;
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.dialog-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.dialog-message {
+  font-size: 16px;
+  color: #666;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.dialog-buttons {
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.dialog-btn {
+  flex: 1;
+  height: 44px;
+  border-radius: 22px;
+  align-items: center;
+  justify-content: center;
+  margin: 0 5px;
+}
+
+.cancel {
+  background-color: #F2F2F2;
+}
+
+.confirm {
+  background-color: #007AFF;
+}
+
+.btn-text {
+  font-size: 16px;
+}
+
+.cancel .btn-text {
+  color: #333;
+}
+
+.confirm .btn-text {
+  color: #FFFFFF;
+}
+</style> 
