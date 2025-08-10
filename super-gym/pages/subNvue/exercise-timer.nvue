@@ -1,0 +1,25 @@
+<template>
+	<view class="container" >
+		<text>00:00</text>
+	</view>
+</template>
+
+<script>
+	export default {
+
+	}
+</script>
+
+<style>
+	.container {
+		align-items: center;
+		justify-content: center;
+		background-color: #5555ff;
+		position: relative;
+		height:120rpx;
+		width:250rpx;
+		border-radius:10rpx;
+		z-index: 1001;
+	}
+
+</style>
