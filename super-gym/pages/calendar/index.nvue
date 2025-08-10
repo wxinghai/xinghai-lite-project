@@ -1,0 +1,17 @@
+<template>
+  <view class="root">
+    <text class="title">日历</text>
+  </view>
+</template>
+
+<script>
+export default {
+  data() { return {} }
+}
+</script> 
+
+<style>
+.root { flex: 1; align-items: center; justify-content: center; display: flex; }
+.title { font-size: 32rpx; color: #333; }
+</style>
+

@@ -1,30 +1,217 @@
 <template>
 	<view class="container" :style="containerStyle">
-		<button @click="clickBtn"><text class="text">训练</text></button>
-    </view>
+		<!-- 训练会话内容 -->
+ 
+			<!-- 页面头部 -->
+			<view class="header">
+				<view class="header-left">
+					<view class="timer-container">
+						<text class="timer">{{ formattedSessionTime }}</text>
+						<!-- 计时器控制按钮 -->
+						<view  class="timer-control-button start">
+							<text class="timer-button-text">开始计时</text>
+						</view>
+					<!-- 	<view v-else class="timer-control-button pause">
+							<text class="timer-button-text">暂停</text>
+						</view> -->
+					</view>
+					<view class="training-name">
+						<text class="training-title">{{ trainingData.title }}</text>
+						<text class="training-name-edit">✏️</text>
+					</view>
+				</view>
+
+				<view class="header-right">
+					<view class="action-button">
+						<text class="action-button-text">完成</text>
+					</view>
+					<view class="stats">
+						<view class="stats-text"><text class="stats-highlight">{{ setsStats.completed }}/{{ setsStats.total }}
+								组</text></view>
+						<view class="stats-text"><text class="stats-highlight">{{ totalWeight }}kg 容量</text></view>
+					</view>
+				</view>
+			</view>
+			<!-- 运动列表组件 -->
+			<exercise-list
+				:exercises="trainingData.exercises"
+				@change-unit="onChangeUnit"
+				@update-set="onUpdateSet"
+				@toggle-complete="onToggleComplete"
+				@add-set="onAddSet"
+				@toggle-collapse="onToggleCollapse"
+				@add-exercise="onAddExercise"
+				@more-actions="onMoreActions"
+				@delete-exercise="deleteExercise"
+				@delete-set="deleteSet"
+			/>
+
+			<!-- 底部导航 -->
+			<view class="bottom-nav">
+				<view class="bottom-nav-btn">
+					<text class="bottom-icon">⬇️</text>
+					<text class="bottom-text">最小化</text>
+				</view>
+				<view class="bottom-nav-btn">
+					<text class="bottom-icon">⏱️</text>
+					<text class="bottom-text">休息计时</text>
+				</view>
+				<view class="bottom-nav-btn">
+					<text class="bottom-icon">➕</text>
+					<text class="bottom-text">添加动作</text>
+				</view>
+				<view class="bottom-nav-btn delete">
+					<text class="bottom-icon">🗑️</text>
+					<text class="bottom-text">删除训练</text>
+				</view>
+				<view class="bottom-nav-btn save">
+					<text class="bottom-icon">💾</text>
+					<text class="bottom-text">保存返回</text>
+				</view>
+			</view>
+	 
+	</view>
 </template>
 
 <script>
+    import ExerciseList from '../../components/ExerciseList.nvue'
 	export default {
+		components: { ExerciseList },
+
 		data() {
-			return {}
+			return {
+				// 训练会话数据
+				trainingData: {
+					title:'测试',
+					exercises:[]
+				},
+			 
+			 
+				// 页面状态
+				loading: true,
+				error: null,
+
+			}
 		},
+
 		computed: {
 			containerStyle() {
 				return {
 					paddingTop: getApp().globalData.statusBarHeight
 				}
+			},
+			// 计算完成组数和总组数
+			setsStats() {
+				return this.trainingData.exercises.reduce((stats, exercise) => {
+					const completedSetsCount = exercise.sets.filter(set => set.completed).length;
+					const totalSetsCount = exercise.sets.length;
+					
+					return {
+						completed: stats.completed + completedSetsCount,
+						total: stats.total + totalSetsCount
+					};
+				}, { completed: 0, total: 0 });
+			},
+			totalWeight() {
+				return this.trainingData.exercises.reduce((totalVolume, exercise) => {
+					return totalVolume + exercise.sets.reduce((exerciseVolume, set) => {
+						if (set.completed && set.weight > 0 && set.reps > 0) {
+							let weightInKg = set.weight;
+							// 如果单位是lbs，转换为kg
+							if (exercise.weightUnit === 'lbs') {
+								weightInKg = set.weight * 0.453592;
+							}
+							return exerciseVolume + (weightInKg * set.reps);
+						}
+						return exerciseVolume;
+					}, 0);
+				}, 0);
+			},
+
+			// 格式化会话时间
+			formattedSessionTime() {
+
+				return `00:00`;
 			}
 		},
-
 		onReady() {
-			uni.getSubNVueById("training").hide()
+			// uni.getSubNVueById("training").hide()
 		},
+
 		methods: {
 			clickBtn() {
 				console.log("关闭");
 				uni.getSubNVueById("training").hide()
-			}
+			},
+			onChangeUnit(index, unit) {
+				
+				const currentUnit = this.trainingData.exercises[index]?.weightUnit;
+				
+				// 如果单位没有变化，直接返回
+				if (currentUnit === unit) return;
+				
+				// 进行重量单位转换
+				const exercise = this.trainingData.exercises[index];
+				if (exercise && exercise.sets) {
+					exercise.sets.forEach(set => {
+						if (set.weight > 0) {
+							if (currentUnit === 'kg' && unit === 'lbs') {
+								// kg转lbs: 1kg = 2.20462lbs
+								set.weight = Math.round(set.weight * 2.20462 * 10) / 10;
+							} else if (currentUnit === 'lbs' && unit === 'kg') {
+								// lbs转kg: 1lbs = 0.453592kg
+								set.weight = Math.round(set.weight * 0.453592 * 10) / 10;
+							}
+						}
+					});
+				}
+
+				if (!this.trainingData.exercises[index]) return;
+				this.trainingData.exercises[index].weightUnit = unit;
+			},
+			onUpdateSet(index, setIndex, payload) {
+				const exercise = this.trainingData.exercises[index];
+				if (!exercise || !exercise.sets[setIndex]) return;
+				Object.assign(exercise.sets[setIndex], payload);
+			},
+			onToggleComplete(index, setIndex) {
+				const exercise = this.trainingData.exercises[index];
+				if (!exercise || !exercise.sets[setIndex]) return;
+				exercise.sets[setIndex].completed = !exercise.sets[setIndex].completed;
+			},
+			onAddSet(index) {
+				const exercise = this.trainingData.exercises[index];
+				if (!exercise) return;
+				exercise.sets.push({ weight: 0, reps: 0, completed: false });
+			},
+			onToggleCollapse(index) {
+				const exercise = this.trainingData.exercises[index];
+				if (!exercise) return;
+				exercise.collapsed = !exercise.collapsed;
+			},
+			onAddExercise() {
+				this.trainingData.exercises.push({
+					id: Date.now(),
+					name: '新动作',
+					collapsed: false,
+					weightUnit: 'kg',
+					sets: [ { weight: 0, reps: 0, completed: false } ],
+					notes: ''
+				});
+			},
+		 
+			onMoreActions(index) {
+				console.log('more actions for exercise', index);
+			},
+			deleteSet(exerciseIndex, setIndex) {
+				const exercise = this.trainingData.exercises[exerciseIndex];
+				if (!exercise || !exercise.sets[setIndex]) return;
+				exercise.sets.splice(setIndex, 1);
+			},
+			deleteExercise(exerciseIndex) {
+				if (!this.trainingData.exercises[exerciseIndex]) return;
+				this.trainingData.exercises.splice(exerciseIndex, 1);
+			},
 		}
 	}
 </script>
@@ -32,13 +219,162 @@
 <style>
 	.container {
 		flex: 1;
+		background-color: #f5f5f5;
+		position: relative;
+	}
+
+	/* 头部样式 */
+	.header {
+		flex-direction: row;
+		justify-content: space-between;
+		padding: 30rpx;
+		background-color: #ffffff;
+		border-bottom-width: 1px;
+		border-bottom-color: #eeeeee;
+	}
+
+	.header-left {
+		flex-direction: column;
+		flex: 1;
+	}
+
+	.timer-container {
+		flex-direction: row;
+		align-items: center;
+		margin-bottom: 6rpx;
+	}
+
+	.timer {
+		font-size: 56rpx;
+		font-weight: bold;
+		color: #333333;
+	}
+
+	.timer-control-button {
+		background-color: #0A84FF;
+		padding: 10rpx 20rpx;
+		border-radius: 12rpx;
+		margin-left: 16rpx;
+	}
+
+	.timer-button-text {
+		color: white;
+		font-size: 28rpx;
+		font-weight: bold;
+	}
+
+	.training-name {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.training-title {
+		font-size: 38rpx;
+		font-weight: bold;
+		color: #666666;
+	}
+
+	.training-name-edit {
+		margin-left: 16rpx;
+		color: #999999;
+		font-size: 32rpx;
+	}
+
+	.header-right {
+		flex-direction: column;
+		align-items: flex-end;
+		justify-content: center;
+		padding-left: 20rpx;
+	}
+
+	.action-button {
+		background-color: #0A84FF;
+		padding: 16rpx 32rpx;
+		border-radius: 12rpx;
+		margin-bottom: 12rpx;
+		align-items: center;
+	}
+
+	.action-button-text {
+		color: white;
+		font-weight: bold;
+		font-size: 32rpx;
+	}
+
+	.stats {
+		flex-direction: column;
+		align-items: flex-end;
+	}
+
+	.stats-text {
 		display: flex;
-		background-color: #F7F8FA;
+
+		display: flex;
+		flex-direction: row;
+
+		margin-bottom: 4rpx;
+		text-align: right;
 	}
 
-	.text {
+	.stats-highlight {
+		font-size: 28rpx;
+		color: #666666;
+		font-weight: bold;
+	}
 
-		color: #000000;
+
+	/* 底部导航 */
+	.bottom-nav {
+		position: fixed;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		flex-direction: row;
+		background-color: #ffffff;
+		box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.1);
+		z-index: 100;
+		height: 130rpx;
+		padding-bottom: 34rpx;
+		/* 替换env(safe-area-inset-bottom)为固定值 */
+	}
+
+	.bottom-nav-btn {
+		flex: 1;
+		padding: 20rpx 0;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.bottom-icon {
+		font-size: 44rpx;
+		margin-bottom: 6rpx;
+	}
+
+	.bottom-text {
 		font-size: 24rpx;
+		color: #666666;
 	}
+
+	.bottom-nav-btn.save {
+		background-color: #0A84FF;
+	}
+
+	.bottom-nav-btn.save .bottom-icon {
+		color: #ffffff;
+	}
+
+	.bottom-nav-btn.save .bottom-text {
+		color: #ffffff;
+	}
+
+	.bottom-nav-btn.delete .bottom-text {
+		color: #FF3B30;
+	}
+
+	.bottom-nav-btn.delete .bottom-icon {
+		color: #FF3B30;
+	}
+
+
+
 </style>

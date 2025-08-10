@@ -49,8 +49,7 @@
 		display: flex;
 		width: 750rpx;
 		flex: 1;
-
-		background-color: #fff9a1;
+		background-color: #F7F8FA;
 
 	}
 </style>

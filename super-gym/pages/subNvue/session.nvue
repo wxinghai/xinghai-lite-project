@@ -1,0 +1,968 @@
+<template>
+	<view class="container" :style="containerStyle">
+		<!-- 训练会话内容 -->
+ 
+			<!-- 页面头部 -->
+			<view class="header">
+				<view class="header-left">
+					<view class="timer-container">
+						<text class="timer">{{ formattedSessionTime }}</text>
+						<!-- 计时器控制按钮 -->
+						<view v-if="!timer.isRunning" class="timer-control-button start">
+							<text class="timer-button-text">开始计时</text>
+						</view>
+						<view v-else class="timer-control-button pause">
+							<text class="timer-button-text">暂停</text>
+						</view>
+					</view>
+					<view class="training-name">
+						<text class="training-title">{{ trainingData.title }}</text>
+						<text class="training-name-edit">✏️</text>
+					</view>
+				</view>
+
+				<view class="header-right">
+					<view class="action-button">
+						<text class="action-button-text">完成</text>
+					</view>
+					<view class="stats">
+						<view class="stats-text"><text class="stats-highlight">{{ completedSets }}/{{ totalSets }}
+								组</text></view>
+						<view class="stats-text"><text class="stats-highlight">{{ totalVolume }}kg 容量</text></view>
+					</view>
+				</view>
+			</view>
+			<!-- 运动列表 -->
+			<list class="exercise-list" showScrollbar="true">
+				<cell v-for="(exercise, exerciseIndex) in trainingData.exercises" :key="exercise.id">
+					<view class="exercise-card" :class="{ 'collapsed': exercise.collapsed }"
+						:ref="`exercise-${exerciseIndex}`">
+						<!-- 运动标题栏 -->
+						<view class="exercise-header">
+							<view class="exercise-name-wrapper">
+								<text class="exercise-name">{{ exercise.name }}</text>
+								<!-- 折叠状态下显示进度 -->
+								<view class="exercise-progress" v-if="exercise.collapsed">
+									<text class="exercise-sets-count">{{ exercise.sets.length }}组</text>
+									<view class="exercise-dots">
+										<view v-for="(set, dotIndex) in exercise.sets" :key="'dot-'+dotIndex"
+											class="dot" :class="{ 'completed': set.completed }"></view>
+									</view>
+								</view>
+							</view>
+
+							<view class="exercise-actions">
+								<view class="icon-button">
+									<text class="icon">📝</text>
+								</view>
+								<view class="icon-button">
+									<text class="icon">⋯</text>
+								</view>
+							</view>
+						</view>
+
+
+
+						<!-- 运动详情内容 -->
+						<view class="collapsible-content">
+							<!-- 组数列表 -->
+							<view class="set-list">
+								<view class="set-list-header">
+									<text class="set-list-title">组数信息</text>
+									<view class="unit-toggle">
+										<view class="unit-toggle-btn"
+											:class="{ 'active': exercise.weightUnit === 'kg' }">
+											<text class="unit-text"
+												:class="{ 'active-text': exercise.weightUnit === 'kg' }">KG</text>
+										</view>
+										<view class="unit-toggle-btn"
+											:class="{ 'active': exercise.weightUnit === 'lbs' }">
+											<text class="unit-text"
+												:class="{ 'active-text': exercise.weightUnit === 'lbs' }">LBS</text>
+										</view>
+									</view>
+								</view>
+
+								<!-- 组数表头 -->
+								<view class="set-row set-header">
+									<text class="set-header-text set-number-col">组数</text>
+									<text class="set-header-text set-weight-col">
+										重量({{ exercise.weightUnit }})
+									</text>
+									<text class="set-header-text set-reps-col">次数</text>
+									<text class="set-header-text set-complete-col">完成</text>
+									<text class="set-header-text set-actions-col"></text>
+								</view>
+
+								<!-- 组数列表 -->
+								<view class="set-row" v-for="(set, setIndex) in exercise.sets"
+									:key="'set-'+exerciseIndex+'-'+setIndex">
+									<text class="set-number-col">{{ setIndex + 1 }}</text>
+									<view class="set-weight-col">
+										<input class="set-input" type="number" v-model="set.weight" />
+									</view>
+									<view class="set-reps-col">
+										<input class="set-input" type="number" v-model="set.reps" />
+									</view>
+									<view class="set-complete-col">
+										<view class="custom-checkbox">
+											<view class="checkbox-inner" v-if="set.completed">
+												<text class="checkbox-icon">✓</text>
+											</view>
+										</view>
+									</view>
+									<view class="set-actions-col">
+										<view class="set-actions-btn">
+											<text class="icon">⋯</text>
+										</view>
+									</view>
+								</view>
+
+								<!-- 添加组数按钮 -->
+								<view class="add-set">
+									<text class="add-set-text">+ 添加组数</text>
+								</view>
+							</view>
+
+							<!-- 备注信息 -->
+							<view class="exercise-notes" v-if="exercise.notes">
+								<text class="notes-text">{{ exercise.notes }}</text>
+							</view>
+						</view>
+					</view>
+				</cell>
+
+				<!-- 添加动作按钮 -->
+				<cell>
+					<view class="add-exercise">
+						<text class="add-exercise-text">+ 添加动作</text>
+					</view>
+				</cell>
+			</list>
+
+			<!-- 底部导航 -->
+			<view class="bottom-nav">
+				<view class="bottom-nav-btn">
+					<text class="bottom-icon">⬇️</text>
+					<text class="bottom-text">最小化</text>
+				</view>
+				<view class="bottom-nav-btn">
+					<text class="bottom-icon">⏱️</text>
+					<text class="bottom-text">休息计时</text>
+				</view>
+				<view class="bottom-nav-btn">
+					<text class="bottom-icon">➕</text>
+					<text class="bottom-text">添加动作</text>
+				</view>
+				<view class="bottom-nav-btn delete">
+					<text class="bottom-icon">🗑️</text>
+					<text class="bottom-text">删除训练</text>
+				</view>
+				<view class="bottom-nav-btn save">
+					<text class="bottom-icon">💾</text>
+					<text class="bottom-text">保存返回</text>
+				</view>
+			</view>
+	 
+	</view>
+</template>
+
+<script>
+	export default {
+
+		data() {
+			return {
+				// 训练会话数据
+				trainingData: {
+					title:'测试',
+					exercises:[]
+				},
+				// 总重量
+				totalVolume: 0,
+				// 页面状态
+				loading: true,
+				error: null,
+
+			}
+		},
+
+		computed: {
+			containerStyle() {
+				return {
+					paddingTop: getApp().globalData.statusBarHeight
+				}
+			},
+			// 计算已完成组数
+			completedSets() {
+				return 5;
+			},
+
+			// 计算总组数
+			totalSets() {
+				return 10;
+			},
+
+			// 格式化会话时间
+			formattedSessionTime() {
+
+				return `00:00`;
+			}
+		},
+		onReady() {
+			uni.getSubNVueById("training").hide()
+		},
+
+		methods: {
+			clickBtn() {
+				console.log("关闭");
+				uni.getSubNVueById("training").hide()
+			}
+		}
+	}
+</script>
+
+<style>
+	.container {
+		flex: 1;
+		background-color: #f5f5f5;
+		position: relative;
+	}
+
+	/* 加载状态和错误样式 */
+	.loading-container,
+	.error-container {
+		flex: 1;
+		justify-content: center;
+		align-items: center;
+		padding: 60rpx;
+	}
+
+	.loading-text {
+		font-size: 32rpx;
+		color: #666666;
+	}
+
+	.error-container {
+		flex-direction: column;
+	}
+
+	.error-text {
+		font-size: 32rpx;
+		color: #ff3b30;
+		margin-bottom: 40rpx;
+		text-align: center;
+	}
+
+	.error-button {
+		background-color: #0A84FF;
+		padding: 20rpx 60rpx;
+		border-radius: 12rpx;
+		align-items: center;
+	}
+
+	.error-button-text {
+		color: white;
+		font-size: 32rpx;
+	}
+
+	/* 头部样式 */
+	.header {
+		flex-direction: row;
+		justify-content: space-between;
+		padding: 30rpx;
+		background-color: #ffffff;
+		border-bottom-width: 1px;
+		border-bottom-color: #eeeeee;
+	}
+
+	.header-left {
+		flex-direction: column;
+		flex: 1;
+	}
+
+	.timer-container {
+		flex-direction: row;
+		align-items: center;
+		margin-bottom: 6rpx;
+	}
+
+	.timer {
+		font-size: 56rpx;
+		font-weight: bold;
+		color: #333333;
+	}
+
+	.timer-control-button {
+		background-color: #0A84FF;
+		padding: 10rpx 20rpx;
+		border-radius: 12rpx;
+		margin-left: 16rpx;
+	}
+
+	.timer-control-button.pause {
+		background-color: #ff3b30;
+	}
+
+	.timer-button-text {
+		color: white;
+		font-size: 28rpx;
+		font-weight: bold;
+	}
+
+	.training-name {
+		flex-direction: row;
+		align-items: center;
+	}
+
+	.training-title {
+		font-size: 38rpx;
+		font-weight: bold;
+		color: #666666;
+	}
+
+	.training-name-edit {
+		margin-left: 16rpx;
+		color: #999999;
+		font-size: 32rpx;
+	}
+
+	.header-right {
+		flex-direction: column;
+		align-items: flex-end;
+		justify-content: center;
+		padding-left: 20rpx;
+	}
+
+	.action-button {
+		background-color: #0A84FF;
+		padding: 16rpx 32rpx;
+		border-radius: 12rpx;
+		margin-bottom: 12rpx;
+		align-items: center;
+	}
+
+	.action-button-text {
+		color: white;
+		font-weight: bold;
+		font-size: 32rpx;
+	}
+
+	.stats {
+		flex-direction: column;
+		align-items: flex-end;
+	}
+
+	.stats-text {
+		display: flex;
+
+		display: flex;
+		flex-direction: row;
+
+		margin-bottom: 4rpx;
+		text-align: right;
+	}
+
+	.stats-highlight {
+		font-size: 28rpx;
+		color: #666666;
+		font-weight: bold;
+	}
+
+	/* 运动列表 */
+	.exercise-list {
+		flex: 1;
+		height: 1300rpx;
+		padding: 20rpx;
+		padding-bottom: 200rpx;
+	}
+
+	/* 运动卡片 */
+	.exercise-card {
+		background-color: #ffffff;
+		border-radius: 20rpx;
+		margin-bottom: 30rpx;
+		overflow: hidden;
+		padding: 20rpx;
+		transition-duration: 0.3s;
+		transition-timing-function: ease-out;
+	}
+
+	.exercise-card.collapsed {
+		padding-bottom: 12rpx;
+		/* 收起时减小底部内边距 */
+		margin-bottom: 15rpx;
+		/* 收起时减小底部外边距 */
+		/* 设定固定高度避免完全消失 */
+		/* height: 100rpx; */
+	}
+
+	/* 运动标题 */
+	.exercise-header {
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 20rpx;
+		padding: 0 10rpx;
+	}
+
+	.exercise-card.collapsed .exercise-header {
+		margin-bottom: 0;
+		/* 折叠状态下移除标题下方的间距 */
+	}
+
+	.exercise-name-wrapper {
+		flex: 1;
+
+	}
+
+	.exercise-name {
+		font-size: 38rpx;
+		font-weight: bold;
+	}
+
+	/* 进度显示 */
+	.exercise-progress {
+		flex-direction: row;
+		align-items: center;
+		margin-top: 5rpx;
+		opacity: 1;
+		height: 40rpx;
+		padding: 0 10rpx;
+		width: 100%;
+		flex-wrap: wrap;
+		display: flex;
+	}
+
+	/* NVue不支持:not选择器和display:none，已通过v-if实现 */
+
+	.exercise-sets-count {
+		font-size: 26rpx;
+		color: #666666;
+		margin-right: 16rpx;
+	}
+
+	.exercise-dots {
+		flex-direction: row;
+		flex-wrap: wrap;
+		margin-top: 3rpx;
+		flex: 1;
+	}
+
+	.dot {
+		width: 18rpx;
+		height: 18rpx;
+		border-radius: 9rpx;
+		background-color: #dddddd;
+		margin-right: 10rpx;
+		margin-bottom: 6rpx;
+		transition-property: background-color;
+		transition-duration: 0.2s;
+	}
+
+	.dot.completed {
+		background-color: #0A84FF;
+	}
+
+	.exercise-actions {
+		flex-direction: row;
+	}
+
+	.icon-button {
+		padding: 10rpx;
+		margin-left: 20rpx;
+		width: 60rpx;
+		height: 60rpx;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.icon {
+		font-size: 36rpx;
+		color: #666666;
+	}
+
+	/* 可折叠内容 */
+	.collapsible-content {
+		height: 800rpx;
+		/* NVue不支持auto，使用一个足够大的固定高度 */
+		opacity: 1;
+		overflow: hidden;
+		transition-duration: 0.25s;
+		flex: 1;
+	}
+
+	.exercise-card.collapsed .collapsible-content {
+		height: 0;
+		/* 使用固定高度 */
+		opacity: 0;
+		padding: 0;
+		/* 移除内边距 */
+		margin: 0;
+		/* 移除外边距 */
+		border-width: 0;
+		/* 移除边框 */
+	}
+
+	/* 组列表样式 */
+	.set-list {
+		border-top-width: 1px;
+		border-top-color: #eeeeee;
+		padding-top: 20rpx;
+		margin-top: 10rpx;
+	}
+
+	.set-list-header {
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 16rpx;
+		padding: 0 10rpx;
+	}
+
+	.set-list-title {
+		font-weight: bold;
+		color: #666666;
+		font-size: 30rpx;
+	}
+
+	.unit-toggle {
+		flex-direction: row;
+		background-color: #f0f0f0;
+		border-radius: 8rpx;
+		overflow: hidden;
+		height: 50rpx;
+	}
+
+	.unit-toggle-btn {
+		padding: 0;
+		width: 80rpx;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.unit-toggle-btn.active {
+		background-color: #333333;
+	}
+
+	.unit-text {
+		color: #666666;
+		font-size: 26rpx;
+		font-weight: bold;
+		text-align: center;
+	}
+
+	.active-text {
+		color: #ffffff;
+	}
+
+	/* 组行样式 */
+	.set-row {
+		flex-direction: row;
+		padding: 16rpx 0;
+		border-bottom-width: 1px;
+		border-bottom-color: #f5f5f5;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.set-header {
+		padding-bottom: 10rpx;
+	}
+
+	.set-header-text {
+		color: #999999;
+		font-size: 24rpx;
+		font-weight: bold;
+	}
+
+	.set-number-col {
+		width: 80rpx;
+		color: #666666;
+		font-weight: bold;
+		text-align: center;
+		padding-left: 10rpx;
+	}
+
+	.set-weight-col,
+	.set-reps-col {
+		width: 160rpx;
+		padding: 0 20rpx;
+	}
+
+	.set-input {
+		background-color: #ffffff;
+		border-width: 1px;
+		border-color: #dddddd;
+		border-radius: 10rpx;
+		padding: 12rpx 8rpx;
+		text-align: center;
+		height: 76rpx;
+		font-size: 34rpx;
+		font-weight: bold;
+		color: #333333;
+	}
+
+	.set-complete-col {
+		width: 90rpx;
+		align-items: center;
+		justify-content: center;
+		padding: 0 10rpx;
+	}
+
+	.set-actions-col {
+		width: 90rpx;
+		align-items: center;
+		justify-content: center;
+		padding-right: 10rpx;
+	}
+
+	.set-actions-btn {
+		padding: 12rpx;
+		width: 80rpx;
+		height: 80rpx;
+		align-items: center;
+		justify-content: center;
+		background-color: rgba(0, 0, 0, 0.03);
+		border-radius: 8rpx;
+	}
+
+	/* 添加组按钮 */
+	.add-set {
+		padding: 20rpx;
+		background-color: #f9f9f9;
+		border-width: 1px;
+		border-style: dashed;
+		border-color: #dddddd;
+		border-radius: 12rpx;
+		margin-top: 20rpx;
+		align-items: center;
+	}
+
+	.add-set-text {
+		color: #666666;
+		font-size: 28rpx;
+	}
+
+	/* 备注 */
+	.exercise-notes {
+		margin-top: 20rpx;
+		padding: 20rpx;
+		background-color: #f9f9f9;
+		border-radius: 12rpx;
+	}
+
+	.notes-text {
+		font-size: 28rpx;
+		color: #666666;
+	}
+
+	/* 添加动作按钮 */
+	.add-exercise {
+		padding: 30rpx;
+		background-color: #ffffff;
+		border-radius: 20rpx;
+		align-items: center;
+		margin-bottom: 160rpx;
+		/* 为底部导航留出足够空间 */
+	}
+
+	.add-exercise-text {
+		color: #0A84FF;
+		font-size: 32rpx;
+		font-weight: bold;
+	}
+
+	/* 底部导航 */
+	.bottom-nav {
+		position: fixed;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		flex-direction: row;
+		background-color: #ffffff;
+		box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.1);
+		z-index: 100;
+		height: 130rpx;
+		padding-bottom: 34rpx;
+		/* 替换env(safe-area-inset-bottom)为固定值 */
+	}
+
+	.bottom-nav-btn {
+		flex: 1;
+		padding: 20rpx 0;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.bottom-icon {
+		font-size: 44rpx;
+		margin-bottom: 6rpx;
+	}
+
+	.bottom-text {
+		font-size: 24rpx;
+		color: #666666;
+	}
+
+	.bottom-nav-btn.save {
+		background-color: #0A84FF;
+	}
+
+	.bottom-nav-btn.save .bottom-icon {
+		color: #ffffff;
+	}
+
+	.bottom-nav-btn.save .bottom-text {
+		color: #ffffff;
+	}
+
+	.bottom-nav-btn.delete .bottom-text {
+		color: #FF3B30;
+	}
+
+	.bottom-nav-btn.delete .bottom-icon {
+		color: #FF3B30;
+	}
+
+	/* 自定义复选框 */
+	.custom-checkbox {
+		width: 50rpx;
+		height: 50rpx;
+		border-radius: 8rpx;
+		border-width: 2rpx;
+		border-color: #dddddd;
+		align-items: center;
+		justify-content: center;
+		background-color: #ffffff;
+	}
+
+	.checkbox-inner {
+		width: 50rpx;
+		height: 50rpx;
+		border-radius: 6rpx;
+		background-color: #0A84FF;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.checkbox-icon {
+		color: #ffffff;
+		font-size: 32rpx;
+		font-weight: bold;
+	}
+
+	/* 操作按钮样式 */
+	.icon {
+		font-size: 40rpx;
+		color: #666666;
+	}
+
+	.set-actions-btn {
+		padding: 12rpx;
+		width: 80rpx;
+		height: 80rpx;
+		align-items: center;
+		justify-content: center;
+		background-color: rgba(0, 0, 0, 0.03);
+		border-radius: 8rpx;
+	}
+
+	/* 休息计时器包装器 */
+	.rest-timer-modal {
+		position: absolute;
+		width: 750rpx;
+		top: 0;
+		z-index: 1000;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+		background-color: rgba(0, 0, 0, 0.8);
+		bottom: 0;
+
+	}
+
+	.zui-xiao {
+		position: absolute;
+		width: 150rpx;
+		height: 150rpx;
+		z-index: 1000;
+		right: 0;
+		border-radius: 75rpx;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+		background-color: rgba(0, 0, 0, 0.8);
+		bottom: 150rpx;
+	}
+
+	.rest-dialog {
+		width: 600rpx;
+		background-color: #ffffff;
+		border-radius: 20rpx;
+		overflow: hidden;
+		box-shadow: 0 10rpx 30rpx rgba(0, 0, 0, 0.2);
+		flex-direction: column;
+		align-items: center;
+		padding: 40rpx 0;
+	}
+
+	.modal-header {
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+		width: 600rpx;
+		padding: 0 30rpx;
+		margin-bottom: 30rpx;
+	}
+
+	.modal-title {
+		font-size: 40rpx;
+		font-weight: bold;
+		color: #333333;
+	}
+
+	.minimize-btn {
+		padding: 10rpx 20rpx;
+		background-color: #f0f0f0;
+		border-radius: 10rpx;
+		align-items: center;
+	}
+
+	.minimize-btn-text {
+		font-size: 28rpx;
+		color: #666666;
+	}
+
+	/* 进度环相关样式 */
+	.timer-circle {
+		width: 300rpx;
+		height: 300rpx;
+		position: relative;
+		margin-bottom: 30rpx;
+		border-radius: 150rpx;
+		overflow: hidden;
+	}
+
+	.progress-ring {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 300rpx;
+		height: 300rpx;
+		border-radius: 150rpx;
+	}
+
+	.progress-background {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		border-radius: 150rpx;
+		background-color: rgba(240, 240, 240, 0.3);
+	}
+
+	.progress-indicator {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		border-radius: 150rpx;
+		/* 背景色将在JS中动态设置为渐变 */
+	}
+
+	.timer-display {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		background-color: #ffffff;
+		border-radius: 150rpx;
+		transform: scale(0.9);
+		z-index: 10;
+	}
+
+	.time {
+		font-size: 80rpx;
+		font-weight: bold;
+		color: #333333;
+	}
+
+	.total-time {
+		font-size: 28rpx;
+		color: #999999;
+		margin-top: 10rpx;
+	}
+
+	.controls {
+		flex-direction: row;
+		justify-content: space-around;
+		width: 600rpx;
+		padding: 0 30rpx;
+		margin-top: 30rpx;
+	}
+
+	.control-btn {
+		padding: 15rpx 30rpx;
+		background-color: #f0f0f0;
+		border-radius: 15rpx;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.control-btn.minus-btn {
+		background-color: #ff3b30;
+	}
+
+	.control-btn.plus-btn {
+		background-color: #0A84FF;
+	}
+
+	.control-btn.finish-btn {
+		background-color: #0A84FF;
+	}
+
+	.btn-text {
+		color: #ffffff;
+		font-size: 32rpx;
+		font-weight: bold;
+	}
+
+	.rest-mini {
+
+		height: 150rpx;
+		width: 150rpx;
+		border-radius: 75rpx;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+		background-color: transparent;
+
+	}
+
+
+	.rest-mini-time {
+		font-size: 40rpx;
+		font-weight: bold;
+		color: #ffffff;
+		background-color: transparent;
+	}
+
+
+	/* 无数据时 */
+	.no-data {
+		align-items: center;
+		padding: 100rpx 0;
+	}
+
+	.no-data-text {
+		font-size: 32rpx;
+		color: #999999;
+	}
+</style>
