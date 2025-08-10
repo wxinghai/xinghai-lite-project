@@ -45,7 +45,7 @@
 
 			<!-- 底部导航 -->
 			<view class="bottom-nav">
-				<view class="bottom-nav-btn">
+				<view class="bottom-nav-btn" @click="minimizeSubNvue">
 					<text class="bottom-icon">⬇️</text>
 					<text class="bottom-text">最小化</text>
 				</view>
@@ -92,6 +92,7 @@
 		},
 
 		computed: {
+			
 			containerStyle() {
 				return {
 					paddingTop: getApp().globalData.statusBarHeight
@@ -132,14 +133,14 @@
 			}
 		},
 		onReady() {
-			// uni.getSubNVueById("training").hide()
+			uni.getSubNVueById("training").hide()
 		},
-
 		methods: {
-			clickBtn() {
-				console.log("关闭");
-				uni.getSubNVueById("training").hide()
-			},
+			
+			minimizeSubNvue() {
+			   	uni.getSubNVueById("training").hide()
+			},  
+			 
 			onChangeUnit(index, unit) {
 				
 				const currentUnit = this.trainingData.exercises[index]?.weightUnit;
