@@ -1,0 +1,44 @@
+<template>
+	<view class="container" :style="containerStyle">
+		<button @click="clickBtn"><text class="text">训练</text></button>
+    </view>
+</template>
+
+<script>
+	export default {
+		data() {
+			return {}
+		},
+		computed: {
+			containerStyle() {
+				return {
+					paddingTop: getApp().globalData.statusBarHeight
+				}
+			}
+		},
+
+		onReady() {
+			uni.getSubNVueById("training").hide()
+		},
+		methods: {
+			clickBtn() {
+				console.log("关闭");
+				uni.getSubNVueById("training").hide()
+			}
+		}
+	}
+</script>
+
+<style>
+	.container {
+		flex: 1;
+		display: flex;
+		background-color: #F7F8FA;
+	}
+
+	.text {
+
+		color: #000000;
+		font-size: 24rpx;
+	}
+</style>

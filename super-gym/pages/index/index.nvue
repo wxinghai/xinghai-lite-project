@@ -1,0 +1,56 @@
+<template>
+	<view class="content" :style="containerStyle">
+		<text class="title">Super Gym</text>
+		<view class="btn-group">
+			<button @click="showTrainingBtn" class="control-btn">显示训练按钮</button>
+		</view>
+	</view>
+</template>
+<script>
+	export default {
+		data() {
+			return {
+				title: 'Hello',
+				subNVue: null
+			}
+		},
+		computed: {
+			containerStyle() {
+				return {
+					paddingTop: getApp().globalData.statusBarHeight
+				}
+			}
+		},
+		onReady() {
+
+		},
+		onLoad() {
+
+		},
+		onUnload() {
+
+		},
+		methods: {
+			closeWin() {
+				this.hideTrainingBtn();
+			},
+			showTrainingBtn() {
+				// #ifdef APP-PLUS
+				uni.getSubNVueById("training").show()
+				// #endif
+			}
+
+		}
+	}
+</script>
+
+<style>
+	.content {
+		display: flex;
+		width: 750rpx;
+		flex: 1;
+
+		background-color: #fff9a1;
+
+	}
+</style>

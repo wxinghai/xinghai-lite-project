@@ -1,0 +1,32 @@
+{
+	"pages": [
+		{
+			"path": "pages/index/index",
+			"style": {
+				"app-plus": {
+					"subNVues": [{
+						"id": "training",
+						"path": "pages/subNvue/training",
+						// "type": "popup", 
+						"style": {
+							"position": "absolute",
+							"width": "750rpx",
+							"height": "100%",
+							"background": "transparent",
+							"zindex": 999
+							 
+						}
+					}]
+				}
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationStyle": "custom",
+	    // "navigationBarBackgroundColor": "#F7F8FA",
+		"app-plus": {
+			"titleNView": true
+		}
+	},
+	"uniIdRouter": {}
+}
