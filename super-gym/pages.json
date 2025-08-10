@@ -1,32 +1,64 @@
 {
-	"pages": [
-		{
-			"path": "pages/index/index",
-			"style": {
-				"app-plus": {
-					"subNVues": [{
-						"id": "training",
-						"path": "pages/subNvue/training",
-						// "type": "popup", 
-						"style": {
-							"position": "absolute",
-							"width": "750rpx",
-							"height": "100%",
-							"background": "transparent",
-							"zindex": 999
-							 
-						}
-					}]
-				}
-			}
-		}
-	],
-	"globalStyle": {
-		"navigationStyle": "custom",
-	    // "navigationBarBackgroundColor": "#F7F8FA",
-		"app-plus": {
-			"titleNView": true
-		}
-	},
-	"uniIdRouter": {}
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "app-plus": {
+          "subNVues": [
+            {
+              "id": "training",
+              "path": "pages/subNvue/training",
+              "style": {
+                "position": "absolute",
+                "width": "750rpx",
+                "height": "100%",
+                "background": "transparent",
+                "zindex": 999
+              }
+            }
+          ]
+        }
+      }
+    },
+    { "path": "pages/actions/index", "style": {} },
+    { "path": "pages/calendar/index", "style": {} },
+    { "path": "pages/mine/index", "style": {} }
+  ],
+  "globalStyle": {
+    "navigationStyle": "custom",
+    "app-plus": { "titleNView": true }
+  },
+  "tabBar": {
+    "color": "#7A7E83",
+    "selectedColor": "#007AFF",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "static/tab/home.png",
+        "selectedIconPath": "static/tab/home-active.png"
+      },
+      {
+        "pagePath": "pages/actions/index",
+        "text": "动作",
+        "iconPath": "static/tab/actions.png",
+        "selectedIconPath": "static/tab/actions-active.png"
+      },
+      {
+        "pagePath": "pages/calendar/index",
+        "text": "日历",
+        "iconPath": "static/tab/calendar.png",
+        "selectedIconPath": "static/tab/calendar-active.png"
+      },
+      {
+        "pagePath": "pages/mine/index",
+        "text": "我的",
+        "iconPath": "static/tab/mine.png",
+        "selectedIconPath": "static/tab/mine-active.png"
+      }
+    ]
+  },
+  "uniIdRouter": {}
 }
