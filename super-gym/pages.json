@@ -15,6 +15,20 @@
                 "background": "transparent",
                 "zindex": 999
               }
+            },
+            {
+              "id": "exercise-timer",
+              "path": "pages/subNvue/exercise-timer",
+              "style": {
+                "position": "absolute",
+                "width": "250rpx",
+                "height": "120rpx",
+                "background": "transparent",
+                "border-radius": "75rpx",
+                "right": "0rpx",
+                "bottom": "100rpx",
+                "zindex": 1000
+              }
             }
           ]
         }
