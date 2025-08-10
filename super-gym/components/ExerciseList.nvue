@@ -1,0 +1,476 @@
+<template>
+	<view>
+
+
+		<list class="exercise-list" showScrollbar="true">
+			<cell v-for="(exercise, exerciseIndex) in exercises" :key="exercise.id || exerciseIndex">
+				<view class="exercise-card" :class="{ 'collapsed': exercise.collapsed }"
+					:ref="`exercise-${exerciseIndex}`">
+					<!-- 运动标题栏 -->
+					<view class="exercise-header">
+						<view class="exercise-name-wrapper" @tap="emitToggleCollapse(exerciseIndex)">
+							<text class="exercise-name">{{ exercise.name }}</text>
+							<!-- 折叠状态下显示进度 -->
+							<view class="exercise-progress" v-if="exercise.collapsed">
+								<text class="exercise-sets-count">{{ exercise.sets.length }}组</text>
+								<view class="exercise-dots">
+									<view v-for="(set, dotIndex) in exercise.sets" :key="'dot-' + dotIndex" class="dot"
+										:class="{ 'completed': dotIndex < getCompletedSet(exercise.sets) }"></view>
+								</view>
+							</view>
+						</view>
+
+						<view class="exercise-actions">
+							<view class="icon-button" @tap="emitMoreActions(exerciseIndex)">
+								<text class="icon">⋯</text>
+							</view>
+						</view>
+					</view>
+
+					<!-- 运动详情内容 -->
+					<view class="collapsible-content" v-if="!exercise.collapsed">
+						<!-- 组数列表 -->
+						<view class="set-list">
+							<!-- 组数列表 -->
+							<view class="set-row" v-for="(set, setIndex) in exercise.sets"
+								:key="'set-' + exerciseIndex + '-' + setIndex">
+								<view class="set-number-col">
+									<view class="field-box index-box">
+										<text class="index-text">{{ setIndex + 1 }}</text>
+									</view>
+								</view>
+								<view class="set-weight-col">
+									<view class="field-box">
+										<text class="field-unit ">+{{ exercise.weightUnit }}</text>
+										<input class="field-input " type="number" :value="set.weight"
+											@input="onInput(exerciseIndex, setIndex, 'weight', $event)" />
+									</view>
+								</view>
+								<view class="set-reps-col">
+									<view class="field-box">
+										<text class="field-unit ">次</text>
+										<input class="field-input " type="number" :value="set.reps"
+											@input="onInput(exerciseIndex, setIndex, 'reps', $event)" />
+									</view>
+								</view>
+
+								<view class="set-reps-col " @tap="emitToggleComplete(exerciseIndex, setIndex)">
+									<view class="field-box set-completed-btn"
+										:class="{ 'is-completed': set.completed }">
+										<text class="complete-check" :class="{ 'is-completed': set.completed }">✓</text>
+									</view>
+								</view>
+								<view class="set-actions-col">
+									<view class="set-actions-btn" @click="showSetOptions(exerciseIndex, setIndex)">
+										<text class="icon">⋯</text>
+									</view>
+								</view>
+							</view>
+
+
+							<!-- 添加组数按钮 -->
+							<view class="add-set" @tap="emitAddSet(exerciseIndex)">
+								<text class="add-set-text">+ 添加组数</text>
+							</view>
+						</view>
+
+						<!-- 备注信息 -->
+						<view class="exercise-notes" v-if="exercise.notes">
+							<text class="notes-text">{{ exercise.notes }}</text>
+						</view>
+					</view>
+				</view>
+			</cell>
+
+			<!-- 添加动作按钮 -->
+			<cell>
+				<view class="add-exercise" @tap="emitAddExercise">
+					<text class="add-exercise-text">+ 添加动作</text>
+				</view>
+			</cell>
+		</list>
+	</view>
+</template>
+
+<script>
+	export default {
+		props: {
+			exercises: {
+				type: Array,
+				required: true
+			}
+		},
+		methods: {
+			showSetOptions(exerciseIndex, setIndex) {
+				uni.showActionSheet({
+					itemList: ['删除'],
+					success: (res) => {
+						this.$emit('delete-set', exerciseIndex, setIndex);
+					}
+				});
+			},
+			getCompletedSet(sets) {
+				return sets.filter(set => set.completed).length;
+			},
+			onInput(exerciseIndex, setIndex, key, event) {
+				const value = (event && event.detail && event.detail.value) != null ? event.detail.value : (event && event
+					.target ? event.target.value : undefined);
+				const numberValue = key === 'weight' || key === 'reps' ? Number(value) : value;
+				this.$emit('update-set', exerciseIndex, setIndex, {
+					[key]: numberValue
+				});
+			},
+			emitToggleComplete(exerciseIndex, setIndex) {
+				this.$emit('toggle-complete', exerciseIndex, setIndex);
+			},
+			emitAddSet(exerciseIndex) {
+				this.$emit('add-set', exerciseIndex);
+			},
+
+			emitToggleCollapse(exerciseIndex) {
+				this.$emit('toggle-collapse', exerciseIndex);
+			},
+			emitAddExercise() {
+				this.$emit('add-exercise');
+			},
+
+			emitMoreActions(exerciseIndex) {
+				uni.showActionSheet({
+					itemList: ['切换单位', '删除动作'],
+					success: (res) => {
+						if (res.tapIndex === 0) {
+							// 切换单位
+							const currentUnit = this.exercises[exerciseIndex].weightUnit == 'kg' ? 'lbs' :
+								'kg';
+							this.$emit('change-unit', exerciseIndex, currentUnit);
+						} else if (res.tapIndex === 1) {
+							// 删除动作
+							uni.showModal({
+								title: '删除动作',
+								content: '确定要删除这个动作吗？',
+								success: (res) => {
+									if (res.confirm) {
+										this.$emit('delete-exercise', exerciseIndex);
+									}
+								}
+							});
+						}
+					}
+				});
+			}
+		}
+
+	}
+</script>
+
+<style>
+	/* 运动列表 */
+	.exercise-list {
+		flex: 1;
+		height: 1300rpx;
+		padding: 20rpx;
+		padding-bottom: 200rpx;
+	}
+
+	/* 运动卡片 */
+	.exercise-card {
+		background-color: #ffffff;
+		border-radius: 20rpx;
+		margin-bottom: 30rpx;
+		padding: 20rpx;
+	}
+
+	.exercise-card.collapsed {
+		padding-bottom: 12rpx;
+		margin-bottom: 15rpx;
+	}
+
+	/* 运动标题 */
+	.exercise-header {
+		flex-direction: row;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 20rpx;
+		padding: 0 10rpx;
+	}
+
+	.exercise-card.collapsed .exercise-header {
+		margin-bottom: 0;
+	}
+
+	.exercise-name-wrapper {
+		flex: 1;
+	}
+
+	.exercise-name {
+		font-size: 38rpx;
+		font-weight: bold;
+	}
+
+	/* 进度显示 */
+	.exercise-progress {
+		flex-direction: row;
+		align-items: center;
+		margin-top: 5rpx;
+		opacity: 1;
+
+		width: 100%;
+		flex-wrap: wrap;
+		display: flex;
+	}
+
+	.exercise-sets-count {
+		font-size: 26rpx;
+		color: #989898;
+		margin-right: 16rpx;
+	}
+
+	.exercise-dots {
+		flex-direction: row;
+		flex-wrap: wrap;
+		margin-top: 3rpx;
+		flex: 1;
+	}
+
+	.dot {
+		width: 18rpx;
+		height: 18rpx;
+		border-radius: 9rpx;
+		background-color: #dddddd;
+		margin-right: 10rpx;
+		margin-bottom: 6rpx;
+		transition-property: background-color;
+		transition-duration: 0.2s;
+	}
+
+	.dot.completed {
+		background-color: #0A84FF;
+	}
+
+	.exercise-actions {
+		flex-direction: row;
+	}
+
+	.icon-button {
+		padding: 10rpx;
+		margin-left: 20rpx;
+		width: 60rpx;
+		height: 60rpx;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.icon {
+		font-size: 36rpx;
+		color: #666666;
+	}
+
+	/* 可折叠内容 */
+	.collapsible-content {
+		flex: 1;
+	}
+
+	/* 组列表样式 */
+	.set-list {
+		border-top-width: 1px;
+		border-top-color: #eeeeee;
+		padding-top: 20rpx;
+		margin-top: 10rpx;
+	}
+
+	.unit-toggle {
+		flex-direction: row;
+		background-color: #f0f0f0;
+		border-radius: 8rpx;
+		overflow: hidden;
+		height: 50rpx;
+	}
+
+	.unit-toggle-btn {
+		padding: 0;
+		width: 80rpx;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.unit-toggle-btn.active {
+		background-color: #333333;
+	}
+
+	.unit-text {
+		color: #666666;
+		font-size: 26rpx;
+		font-weight: bold;
+		text-align: center;
+	}
+
+	.active-text {
+		color: #ffffff;
+	}
+
+	/* 组行样式 */
+	.set-row {
+		flex-direction: row;
+		padding: 16rpx 0;
+		border-bottom-width: 1px;
+		border-bottom-color: #f5f5f5;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.set-header {
+		padding-bottom: 10rpx;
+	}
+
+	.set-header-text {
+		color: #999999;
+		font-size: 24rpx;
+		font-weight: bold;
+	}
+
+	.set-number-col {
+		width: 90rpx;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.index-box {
+		width: 90rpx;
+		height: 100rpx;
+		border-radius: 12rpx;
+		border-width: 1px;
+		border-color: #ffffff;
+		background-color: #ffffff;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.index-text {
+		color: #666666;
+		font-size: 34rpx;
+		font-weight: bold;
+	}
+
+	.set-completed-btn {
+		align-items: center;
+		justify-content: center;
+		text-align: center;
+	 
+	}
+
+	.set-weight-col,
+	.set-reps-col {
+		width: 120rpx;
+		justify-content: center;
+		align-items: center;
+	}
+
+	.field-box {
+		position: relative;
+		flex-direction: row;
+		align-items: center;
+		height: 100rpx;
+		width: 120rpx;
+		border-width: 1px;
+		border-color: #dddddd;
+		border-radius: 12rpx;
+		background-color: #ffffff;
+	}
+
+	.field-unit {
+		position: absolute;
+		top: 0rpx;
+		left: 10rpx;
+		color: #999999;
+		font-size: 20rpx;
+		/* 更小字号，角标效果 */
+	}
+
+	.field-input {
+		flex: 1;
+		text-align: center;
+		height: 100%;
+		color: #333333;
+		font-size: 34rpx;
+		font-weight: bold;
+	}
+
+
+	.complete-check {
+		color: #333333;
+		font-size: 50rpx;
+		font-weight: bold;
+		width: 80rpx;
+		height: 80rpx;
+		line-height: 80rpx;
+		text-align: center;
+	}
+
+	/* 完成状态：输入框随之统一变蓝、文字变白 */
+	.is-completed {
+		color: #fff;
+		background-color: #0A84FF;
+	}
+
+	.set-actions-col {
+		width: 90rpx;
+		align-items: center;
+		justify-content: center;
+
+	}
+
+	.set-actions-btn {
+		padding: 12rpx;
+		width: 80rpx;
+		height: 80rpx;
+		align-items: center;
+		justify-content: center;
+		background-color: rgba(0, 0, 0, 0.03);
+		border-radius: 8rpx;
+	}
+
+	/* 添加组按钮 */
+	.add-set {
+		padding: 20rpx;
+		background-color: #f9f9f9;
+		border-width: 1px;
+		border-style: dashed;
+		border-color: #dddddd;
+		border-radius: 12rpx;
+		margin-top: 20rpx;
+		align-items: center;
+	}
+
+	.add-set-text {
+		color: #666666;
+		font-size: 28rpx;
+	}
+
+	/* 备注 */
+	.exercise-notes {
+		margin-top: 20rpx;
+		padding: 20rpx;
+		background-color: #f9f9f9;
+		border-radius: 12rpx;
+	}
+
+	.notes-text {
+		font-size: 28rpx;
+		color: #666666;
+	}
+
+	/* 添加动作按钮 */
+	.add-exercise {
+		padding: 30rpx;
+		background-color: #ffffff;
+		border-radius: 20rpx;
+		align-items: center;
+		margin-bottom: 160rpx;
+	}
+
+	.add-exercise-text {
+		color: #0A84FF;
+		font-size: 32rpx;
+		font-weight: bold;
+	}
+</style>
