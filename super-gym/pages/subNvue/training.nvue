@@ -11,9 +11,6 @@
 						<view  class="timer-control-button start">
 							<text class="timer-button-text">开始计时</text>
 						</view>
-					<!-- 	<view v-else class="timer-control-button pause">
-							<text class="timer-button-text">暂停</text>
-						</view> -->
 					</view>
 					<view class="training-name">
 						<text class="training-title">{{ trainingData.title }}</text>
